@@ -40,6 +40,11 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config"
 xfail_strict = true
+markers = [
+  # `slow` covers anything that trains a real model end-to-end. Use
+  # `pytest -m "not slow"` for the fast inner loop.
+  "slow: end-to-end tests that train a real model (>1s).",
+]
 filterwarnings = [
   # Surface warnings as errors so we catch deprecations in our own code.
   "error",
