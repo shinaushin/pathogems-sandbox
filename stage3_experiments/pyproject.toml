@@ -1,0 +1,89 @@
+# Build + tool config for the Stage 3 `pathogems` package.
+#
+# The package lives under `src/pathogems` (src-layout) so that imports only
+# resolve after `pip install -e .` — this prevents accidental imports that
+# depend on cwd and catches missing-package bugs early.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pathogems"
+version = "0.1.0"
+description = "Stage 3 experiment harness for multimodal cancer survival prediction."
+readme = "../README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Austin Shin", email = "shinaushin@gmail.com" }]
+# Runtime deps are managed by conda (see environment.yml). We only list here
+# what is strictly needed for `pip install -e .` to succeed on a minimal env —
+# the rest are asserted via imports and tested in CI / local runs.
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scikit-learn>=1.4",
+  "torch>=2.2",
+  "scikit-survival>=0.22",
+]
+
+[project.scripts]
+# `pathogems-train` becomes available on PATH after `pip install -e .`
+pathogems-train = "pathogems.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = [
+  # Surface warnings as errors so we catch deprecations in our own code.
+  "error",
+  # But let known third-party deprecations through.
+  "ignore::DeprecationWarning:pkg_resources",
+]
+
+# ---------------------------------------------------------------------------
+# mypy — strict enough to catch real bugs, loose enough to not block research.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# Third-party libs without complete stubs.
+[[tool.mypy.overrides]]
+module = ["sksurv.*", "lifelines.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# ruff — lint + format. Keeps diffs clean across commits.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",   # pycodestyle / pyflakes
+  "I",             # isort
+  "B",             # bugbear
+  "UP",            # pyupgrade
+  "N",             # pep8-naming
+  "D",             # pydocstyle
+  "RUF",           # ruff-specific
+]
+ignore = [
+  "D100",  # Missing docstring in public module (tests, etc.)
+  "D104",  # Missing docstring in public package
+  "D203",  # one-blank-line-before-class (conflicts with D211)
+  "D213",  # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

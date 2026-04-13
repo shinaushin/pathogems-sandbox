@@ -1,0 +1,47 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+
+# ---- Virtualenvs / conda ----
+.venv/
+venv/
+env/
+.conda/
+
+# ---- Tooling ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ---- Editors ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# ---- Project-specific ----
+# Raw/downloaded data is large and reproducible from manifests — never commit.
+stage2_data/raw/
+stage2_data/download_scripts/*.token
+
+# Model checkpoints are large binaries — regenerable from configs + logs.
+stage3_experiments/checkpoints/*.pt
+stage3_experiments/checkpoints/*.pth
+
+# Per-run working dirs
+stage3_experiments/runs/
+
+# Secrets
+.env
+*.key
