@@ -1,0 +1,23 @@
+{
+  "name": "brca_omics_baseline",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": ["RNA_seq"],
+  "top_k_genes": 500,
+  "model": "omics_mlp",
+  "hidden_dims": [128, 32],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 1e-4,
+  "weight_decay": 1e-4,
+  "batch_size": 128,
+  "epochs": 50,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "notes": "ADR 0001/0002/0004 baseline. Omics-only MLP on top-500 variable genes, Cox PH loss, 5-fold stratified CV.",
+  "config_version": 1
+}
