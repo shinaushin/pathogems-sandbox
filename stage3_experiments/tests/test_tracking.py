@@ -37,7 +37,7 @@ class TestTrackRun:
             assert isinstance(tracker, _NullTracker)
 
     def test_enabled_but_mlflow_missing_falls_back_to_null(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """If mlflow is not importable, tracker degrades gracefully.
 
@@ -48,11 +48,11 @@ class TestTrackRun:
         # mlflow. We blacklist it at the finder level.
         monkeypatch.setitem(sys.modules, "mlflow", None)
         cfg = ExperimentConfig(name="mlflow_missing", enable_mlflow=True)
-        with track_run(cfg) as tracker:
-            assert isinstance(tracker, _NullTracker)
+        with caplog.at_level("WARNING", logger="pathogems.tracking"):
+            with track_run(cfg) as tracker:
+                assert isinstance(tracker, _NullTracker)
 
-        captured = capsys.readouterr()
-        assert "mlflow not installed" in captured.out
+        assert "mlflow not installed" in caplog.text
 
 
 class TestMLflowTrackerAdapter:

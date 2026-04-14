@@ -13,7 +13,7 @@ arrive only when we have a concrete experiment that requires them.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +58,11 @@ class ExperimentConfig:
             are small enough (<~1200 patients) that it fits on CPU. For
             larger cohorts or when mini-batching is desired, set an
             explicit int. 128 was the old default and is known to work.
+        max_grad_norm: Global gradient norm clipping threshold. Cox PH
+            loss can produce large gradients when one patient dominates
+            the risk set (common in small cohorts with extreme outliers).
+            Clipping to norm 1.0 prevents NaN explosions without hurting
+            convergence. ``None`` disables clipping.
         epochs: Max epochs. Early stopping may cut short.
         early_stopping_patience: Epochs of no validation improvement
             before stopping. 0 disables.
@@ -89,6 +94,7 @@ class ExperimentConfig:
     lr: float = 1e-4
     weight_decay: float = 1e-4
     batch_size: int | None = None
+    max_grad_norm: float | None = 1.0  # gradient clipping; None disables
     epochs: int = 50
     early_stopping_patience: int = 10
     val_fraction: float = 0.1

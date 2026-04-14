@@ -90,6 +90,15 @@ def build_run_log(
             "c_index_folds": _jsonable(result.per_fold_c_index()),
             "final_loss_mean": _jsonable(result.final_loss_mean),
             "final_loss_folds": _jsonable(result.per_fold_final_loss()),
+            # Per-epoch loss curves — useful for convergence diagnostics.
+            # Keyed by fold index so Stage 4 can plot individual curves.
+            "loss_curves": {
+                str(f.fold_id): {
+                    "train": _jsonable(list(f.train_losses)),
+                    "val": _jsonable(list(f.val_losses)),
+                }
+                for f in result.folds
+            },
         }
 
     return {

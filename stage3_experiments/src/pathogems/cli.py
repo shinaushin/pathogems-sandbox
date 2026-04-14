@@ -20,11 +20,15 @@ from pathlib import Path
 
 import torch
 
+import logging
+
 from .config import ExperimentConfig
 from .data import assemble_cohort
 from .run_log import write_run_log
 from .tracking import track_run
 from .train import cross_validate
+
+log = logging.getLogger(__name__)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -52,26 +56,65 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _validate_study_dir(study_dir: Path) -> None:
+    """Fail fast with a helpful message if the study directory is incomplete.
+
+    Checks that the directory exists and that the three expected cBioPortal
+    files are present. Running `assemble_cohort` against a bad path would
+    eventually raise a cryptic pandas error; catching it here saves time.
+    """
+    expected_files = [
+        "data_mrna_seq_v2_rsem.txt",
+        "data_clinical_patient.txt",
+        "data_clinical_sample.txt",
+    ]
+    if not study_dir.is_dir():
+        raise FileNotFoundError(
+            f"Study data directory does not exist: {study_dir}\n"
+            f"Run `python stage2_data/fetch_cbioportal_brca.py` to download the data."
+        )
+    missing = [f for f in expected_files if not (study_dir / f).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Study data directory {study_dir} is missing expected files: {missing}\n"
+            f"Run `python stage2_data/fetch_cbioportal_brca.py` to re-download."
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+
+    # Configure logging early so all modules that use `logging` are wired up.
+    logging.basicConfig(
+        level=logging.DEBUG if not args.quiet else logging.WARNING,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     # Fail fast on config errors — we have no run name to log against yet.
     config = ExperimentConfig.from_json(args.config)
+
+    # Validate study directory before entering the (slow) training loop.
+    study_dir = Path(config.study_data_dir)
+    _validate_study_dir(study_dir)
 
     started_at = datetime.now(UTC)
     # `track_run` yields a no-op tracker when enable_mlflow=False, so the
     # happy and tracked paths are identical code.
     with track_run(config) as tracker:
         try:
-            study_dir = Path(config.study_data_dir)
             cohort = assemble_cohort(
                 expression_path=study_dir / "data_mrna_seq_v2_rsem.txt",
                 clinical_patient_path=study_dir / "data_clinical_patient.txt",
                 clinical_sample_path=study_dir / "data_clinical_sample.txt",
                 study_id=config.cohort,
             )
-            print(
-                f"[cli] Cohort {config.cohort}: {cohort.n_patients} patients, "
-                f"{cohort.n_genes} genes, event rate {cohort.event_rate:.2%}"
+            log.info(
+                "Cohort %s: %d patients, %d genes, event rate %.2f%%",
+                config.cohort,
+                cohort.n_patients,
+                cohort.n_genes,
+                cohort.event_rate * 100,
             )
             tracker.log_metric("cohort_n_patients", float(cohort.n_patients))
             tracker.log_metric("cohort_n_genes", float(cohort.n_genes))
@@ -95,9 +138,12 @@ def main(argv: list[str] | None = None) -> int:
             # has everything the run log has — single pane of glass when
             # enabled, without sacrificing the run log as source of truth.
             tracker.log_artifact(log_path)
-            print(
-                f"[cli] DONE  C-index = {result.c_index_mean:.4f} +/- {result.c_index_std:.4f}  "
-                f"(n_folds={config.n_folds})  log={log_path}"
+            log.info(
+                "DONE  C-index = %.4f +/- %.4f  (n_folds=%d)  log=%s",
+                result.c_index_mean,
+                result.c_index_std,
+                config.n_folds,
+                log_path,
             )
             return 0
 
@@ -120,14 +166,16 @@ def main(argv: list[str] | None = None) -> int:
                 # Even on failure, attach what we have to the MLflow run
                 # so the tracker reflects reality.
                 tracker.log_artifact(log_path)
-                print(f"[cli] FAILED  {type(exc).__name__}: {exc}  log={log_path}", file=sys.stderr)
+                log.error("FAILED  %s: %s  log=%s", type(exc).__name__, exc, log_path)
             except Exception as log_exc:  # pragma: no cover - extremely defensive
                 # If even writing the failure log fails, surface both errors.
-                print(
-                    f"[cli] FAILED and could not write run log. "
-                    f"Original error: {type(exc).__name__}: {exc}. "
-                    f"Log write error: {type(log_exc).__name__}: {log_exc}",
-                    file=sys.stderr,
+                log.error(
+                    "FAILED and could not write run log. "
+                    "Original error: %s: %s. Log write error: %s: %s",
+                    type(exc).__name__,
+                    exc,
+                    type(log_exc).__name__,
+                    log_exc,
                 )
             # Re-raise so shell `$?` reflects the failure and any wrapping
             # script sees a non-zero exit. `SystemExit` and `KeyboardInterrupt`

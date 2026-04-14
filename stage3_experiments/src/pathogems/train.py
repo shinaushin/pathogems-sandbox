@@ -16,13 +16,15 @@ Design:
 from __future__ import annotations
 
 import copy
+import logging
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
+from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from .config import ExperimentConfig
@@ -32,13 +34,20 @@ from .metrics import concordance_index
 from .model import MODEL_REGISTRY
 from .optimizers import OPTIMIZER_REGISTRY
 
+log = logging.getLogger(__name__)
+
 
 # --------------------------------------------------------------------------- #
 # Per-fold result
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True, slots=True)
 class FoldResult:
-    """Outcome of training on a single CV fold."""
+    """Outcome of training on a single CV fold.
+
+    ``train_losses`` and ``val_losses`` store the per-epoch loss curve so
+    convergence can be inspected after the fact — either plotted via MLflow
+    or dumped into the run log for Stage 4 analysis.
+    """
 
     fold_id: int
     c_index: float  # held-out test-fold C-index — this is the headline number
@@ -47,6 +56,8 @@ class FoldResult:
     epochs_trained: int  # may be < config.epochs if early stopping fired
     best_epoch: int  # epoch at which val loss was lowest
     wall_clock_sec: float
+    train_losses: tuple[float, ...] = ()  # length == epochs_trained
+    val_losses: tuple[float, ...] = ()  # length == epochs_trained
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +173,8 @@ def train_one_fold(
     no_improve = 0
     final_train_loss = float("nan")
     epochs_trained = 0
+    all_train_losses: list[float] = []
+    all_val_losses: list[float] = []
 
     for epoch in range(1, config.epochs + 1):
         model.train()
@@ -172,14 +185,22 @@ def train_one_fold(
             loss = loss_fn(risk, tb, eb)
             if torch.isfinite(loss):
                 loss.backward()
+                # Gradient clipping: Cox PH can produce large gradients
+                # when a single patient dominates the risk set. Clipping
+                # to a global norm of `max_grad_norm` prevents NaN
+                # explosions without materially hurting convergence.
+                if config.max_grad_norm is not None:
+                    nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
                 optimizer.step()
                 epoch_losses.append(loss.item())
         final_train_loss = float(np.mean(epoch_losses)) if epoch_losses else float("nan")
+        all_train_losses.append(final_train_loss)
 
         # Validation
         model.eval()
         with torch.no_grad():
             val_loss = loss_fn(model(x_va), t_va, e_va).item()
+        all_val_losses.append(val_loss)
 
         epochs_trained = epoch
         if val_loss < best_val - 1e-6:
@@ -209,6 +230,8 @@ def train_one_fold(
         epochs_trained=epochs_trained,
         best_epoch=best_epoch,
         wall_clock_sec=time.perf_counter() - started,
+        train_losses=tuple(all_train_losses),
+        val_losses=tuple(all_val_losses),
     )
 
 
@@ -230,12 +253,16 @@ def cross_validate(
         )
         result = train_one_fold(tensors, config, fold_id=fold_id, device=device)
         if verbose:
-            print(
-                f"[fold {fold_id + 1}/{config.n_folds}] "
-                f"C-index={result.c_index:.4f}  "
-                f"val_loss={result.final_val_loss:.4f}  "
-                f"epochs={result.epochs_trained} (best@{result.best_epoch})  "
-                f"{result.wall_clock_sec:.1f}s"
+            log.info(
+                "fold %d/%d  C-index=%.4f  val_loss=%.4f  "
+                "epochs=%d (best@%d)  %.1fs",
+                fold_id + 1,
+                config.n_folds,
+                result.c_index,
+                result.final_val_loss,
+                result.epochs_trained,
+                result.best_epoch,
+                result.wall_clock_sec,
             )
         folds.append(result)
     return CVResult(folds=folds)

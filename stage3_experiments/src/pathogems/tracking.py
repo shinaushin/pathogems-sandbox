@@ -36,6 +36,7 @@ methods are all no-ops, so the CLI has exactly one code path.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -44,6 +45,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .config import ExperimentConfig
     from .train import CVResult
+
+log = logging.getLogger(__name__)
 
 
 class _NullTracker:
@@ -91,6 +94,10 @@ class _MLflowTracker:
     def log_cv_result(self, result: "CVResult") -> None:
         """Log aggregate + per-fold metrics. Per-fold metrics use `step`
         so MLflow displays them as a small per-fold curve in the UI.
+
+        Per-epoch loss curves are logged as ``fold{i}_train_loss`` and
+        ``fold{i}_val_loss`` with ``step=epoch``, which MLflow renders
+        as a line chart per fold.
         """
         self.log_metric("c_index_mean", result.c_index_mean)
         self.log_metric("c_index_std", result.c_index_std)
@@ -99,6 +106,11 @@ class _MLflowTracker:
             self.log_metric("fold_c_index", fold.c_index, step=fold.fold_id)
             self.log_metric("fold_final_val_loss", fold.final_val_loss, step=fold.fold_id)
             self.log_metric("fold_epochs_trained", fold.epochs_trained, step=fold.fold_id)
+            # Per-epoch loss curves for convergence diagnostics.
+            for epoch, tl in enumerate(fold.train_losses, start=1):
+                self.log_metric(f"fold{fold.fold_id}_train_loss", tl, step=epoch)
+            for epoch, vl in enumerate(fold.val_losses, start=1):
+                self.log_metric(f"fold{fold.fold_id}_val_loss", vl, step=epoch)
 
     def log_artifact(self, path: Path) -> None:
         self._ml.log_artifact(str(path))
@@ -120,8 +132,8 @@ def track_run(config: "ExperimentConfig") -> Iterator[_NullTracker | _MLflowTrac
     try:
         import mlflow
     except ImportError:
-        print(
-            "[tracking] mlflow not installed — `pip install mlflow` to enable. "
+        log.warning(
+            "mlflow not installed — `pip install mlflow` to enable. "
             "Continuing without tracking."
         )
         yield _NullTracker()

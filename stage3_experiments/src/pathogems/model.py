@@ -12,6 +12,7 @@ exactly one axis: depth, width, activation, regularization, etc.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -20,6 +21,8 @@ import torch
 from torch import nn
 
 from .registry import Registry
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # avoid a runtime import cycle (config has no torch deps anyway)
     from .config import ExperimentConfig
@@ -184,9 +187,31 @@ class LinearCox(nn.Module):
 
 @MODEL_REGISTRY.register("linear_cox")
 def _build_linear_cox(in_features: int, config: "ExperimentConfig") -> nn.Module:
-    """LinearCox has no hyperparameters beyond `in_features`. `hidden_dims`,
-    `dropout`, and `use_batchnorm` are ignored here — a sanity lint in
-    `config.py` could warn about this, but we keep the harness permissive
-    so swapping models is a truly one-field change.
+    """LinearCox has no hyperparameters beyond `in_features`.
+
+    ``hidden_dims``, ``dropout``, and ``use_batchnorm`` are ignored. We
+    log a warning when they differ from their defaults so a user who
+    accidentally left ``dropout=0.5`` in a linear_cox config knows they're
+    not doing what they think they're doing — while still allowing the
+    common case of "copy the MLP config, change only `model`" to work
+    without requiring field cleanup.
     """
+    # Defaults from ExperimentConfig — import deferred to avoid a cycle.
+    from .config import ExperimentConfig as _EC  # noqa: N813
+
+    if config.hidden_dims != _EC.hidden_dims:
+        log.warning(
+            "linear_cox ignores hidden_dims=%s (config has non-default value).",
+            config.hidden_dims,
+        )
+    if config.dropout != _EC.dropout:
+        log.warning(
+            "linear_cox ignores dropout=%.2f (config has non-default value).",
+            config.dropout,
+        )
+    if config.use_batchnorm != _EC.use_batchnorm:
+        log.warning(
+            "linear_cox ignores use_batchnorm=%s (config has non-default value).",
+            config.use_batchnorm,
+        )
     return LinearCox(in_features=in_features)

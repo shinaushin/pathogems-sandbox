@@ -16,3 +16,4 @@ superseded by a later ADR that references them.
 | 0006 | [Linear Cox reference baseline](0006-linear-cox-reference-baseline.md) | Accepted |
 | 0007 | [Full-batch Cox PH training as the default](0007-full-batch-cox-training.md) | Accepted |
 | 0008 | [MLflow as an optional observability layer](0008-mlflow-experiment-tracking.md) | Accepted |
+| 0009 | [Reproducibility stance](0009-reproducibility-stance.md) | Accepted |
