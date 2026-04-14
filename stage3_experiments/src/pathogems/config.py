@@ -96,6 +96,16 @@ class ExperimentConfig:
     # --- evaluation ---
     n_folds: int = 5
 
+    # --- experiment tracking (ADR 0008) ---
+    # MLflow is optional: leaving `enable_mlflow=False` keeps the harness
+    # fully self-contained (JSON run log is still the source of truth for
+    # Stage 4). When enabled, every run writes params, per-fold metrics,
+    # summary metrics, and the run-log JSON as an artifact to the
+    # configured tracking URI.
+    enable_mlflow: bool = False
+    mlflow_tracking_uri: str | None = None  # None -> MLflow default (./mlruns)
+    mlflow_experiment_name: str = "pathogems"
+
     # --- optional free-form notes for the run log ---
     notes: str | None = None
 

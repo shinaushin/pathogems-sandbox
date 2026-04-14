@@ -9,6 +9,7 @@ Public submodules:
     train      - Single-fold and cross-validated training loops.
     registry   - Small generic name->factory registry used by model/loss/optimizers.
     run_log    - Structured JSON run-log writer (Stage 3 -> Stage 4 contract).
+    tracking   - Optional MLflow experiment tracking (ADR 0008).
     cli        - Command-line entry point: `pathogems-train --config <path>`.
 """
 
