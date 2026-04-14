@@ -12,10 +12,27 @@ exactly one axis: depth, width, activation, regularization, etc.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
+
+from .registry import Registry
+
+if TYPE_CHECKING:  # avoid a runtime import cycle (config has no torch deps anyway)
+    from .config import ExperimentConfig
+
+# Registry maps a model name (as used in `ExperimentConfig.model`) to a
+# *factory* callable `factory(in_features: int, config: ExperimentConfig) -> nn.Module`.
+# The factory takes the runtime `in_features` (which the config doesn't know
+# — it depends on `top_k_genes` and the preprocessor output) plus the full
+# config so each model can pick out the knobs it cares about. Keeping the
+# factory signature uniform lets `train.py` call `MODEL_REGISTRY.get(name)`
+# and forget about which specific model it's constructing.
+ModelFactory = Callable[[int, "ExperimentConfig"], nn.Module]
+MODEL_REGISTRY: Registry[ModelFactory] = Registry("model")
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,3 +119,22 @@ class OmicsMLP(nn.Module):
 
     def num_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+@MODEL_REGISTRY.register("omics_mlp")
+def _build_omics_mlp(in_features: int, config: "ExperimentConfig") -> nn.Module:
+    """Factory: translate the generic `ExperimentConfig` into `OmicsMLPConfig`.
+
+    Living next to `OmicsMLP` (instead of in `train.py`) means the
+    responsibility for mapping config fields to constructor args stays with
+    the owner of those fields. A second model in this file only has to add
+    its own factory, with no change to `train.py`.
+    """
+    return OmicsMLP(
+        OmicsMLPConfig(
+            in_features=in_features,
+            hidden_dims=tuple(config.hidden_dims),
+            dropout=config.dropout,
+            use_batchnorm=config.use_batchnorm,
+        )
+    )

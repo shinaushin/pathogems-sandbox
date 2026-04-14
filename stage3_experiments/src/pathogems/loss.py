@@ -41,7 +41,18 @@ ones at event positions.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import torch
+
+from .registry import Registry
+
+# A loss is any callable `loss(risk, time, event) -> scalar tensor`.
+# Keeping the signature uniform — and *not* passing the full config — means
+# new losses (e.g. ranking, DeepHit) have to declare their knobs explicitly
+# rather than silently reading unrelated config fields.
+LossFn = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]
+LOSS_REGISTRY: Registry[LossFn] = Registry("loss")
 
 
 def cox_ph_loss(
@@ -96,3 +107,12 @@ def cox_ph_loss(
     partial = risk_sorted - log_risk_set
     loss = -(partial * event_sorted).sum() / torch.clamp(n_events, min=epsilon)
     return loss
+
+
+# Register under the name used in `ExperimentConfig.loss`. The wrapper
+# adapts the keyword-only `epsilon` argument to the uniform registry
+# signature — callers who want a non-default epsilon should import
+# `cox_ph_loss` directly.
+@LOSS_REGISTRY.register("cox_ph")
+def _cox_ph_loss_default(risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor) -> torch.Tensor:
+    return cox_ph_loss(risk, time, event)

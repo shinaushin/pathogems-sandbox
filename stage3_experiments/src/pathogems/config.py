@@ -125,8 +125,10 @@ class ExperimentConfig:
                 "this code only handles version 1. Upgrade explicitly."
             )
         # Drop unknown keys loudly — silent ignore is a classic "why didn't
-        # my hyperparam change have any effect?" source of pain.
-        known = {f.name for f in cls.__dataclass_fields__.values()} if hasattr(cls, "__dataclass_fields__") else set(cls.__annotations__)
+        # my hyperparam change have any effect?" source of pain. `cls` is
+        # always a dataclass here (enforced by the `@dataclass` decorator),
+        # so `__dataclass_fields__` is guaranteed to exist.
+        known = {f.name for f in cls.__dataclass_fields__.values()}
         unknown = set(d) - known
         if unknown:
             raise ValueError(f"Unknown config fields: {sorted(unknown)}")
