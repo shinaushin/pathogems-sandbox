@@ -138,3 +138,55 @@ def _build_omics_mlp(in_features: int, config: "ExperimentConfig") -> nn.Module:
             use_batchnorm=config.use_batchnorm,
         )
     )
+
+
+# --------------------------------------------------------------------------- #
+# LinearCox — "baseline of the baseline"
+# --------------------------------------------------------------------------- #
+class LinearCox(nn.Module):
+    """Linear Cox predictor: risk = w^T x + b, no non-linearity.
+
+    This is the *simplest possible* neural Cox model and serves as a
+    sanity-check reference point: if the MLP can't beat a regularized
+    linear Cox fit, either the MLP is mis-tuned or there is no non-linear
+    signal to extract in the first place. Classic survival-ML papers
+    (DeepSurv and successors) treat linear Cox as the baseline to beat,
+    so we want it available on the exact same harness to make the
+    comparison meaningful.
+
+    Notes on shape: we implement this as a single `nn.Linear(in, 1)`
+    rather than calling it a "logistic regression" — Cox PH's partial
+    likelihood is already what this model optimizes end-to-end via
+    `loss.cox_ph_loss`, so the terminology stays precise.
+    """
+
+    def __init__(self, in_features: int) -> None:
+        super().__init__()
+        if in_features <= 0:
+            raise ValueError("in_features must be positive.")
+        self.linear = nn.Linear(in_features, 1)
+        # Small init so early batches don't produce extreme risks that
+        # destabilize the logcumsumexp in the loss.
+        nn.init.normal_(self.linear.weight, mean=0.0, std=0.01)
+        nn.init.zeros_(self.linear.bias)
+        self.in_features = in_features
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dim() != 2 or x.shape[1] != self.in_features:
+            raise ValueError(
+                f"Expected input of shape (batch, {self.in_features}), got {tuple(x.shape)}."
+            )
+        return self.linear(x).squeeze(-1)
+
+    def num_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+@MODEL_REGISTRY.register("linear_cox")
+def _build_linear_cox(in_features: int, config: "ExperimentConfig") -> nn.Module:
+    """LinearCox has no hyperparameters beyond `in_features`. `hidden_dims`,
+    `dropout`, and `use_batchnorm` are ignored here — a sanity lint in
+    `config.py` could warn about this, but we keep the harness permissive
+    so swapping models is a truly one-field change.
+    """
+    return LinearCox(in_features=in_features)

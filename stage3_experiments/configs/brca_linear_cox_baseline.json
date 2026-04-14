@@ -1,0 +1,23 @@
+{
+  "name": "brca_linear_cox_baseline",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": ["RNA_seq"],
+  "top_k_genes": 500,
+  "model": "linear_cox",
+  "hidden_dims": [128, 32],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 1e-3,
+  "weight_decay": 1e-3,
+  "batch_size": 128,
+  "epochs": 100,
+  "early_stopping_patience": 15,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "notes": "Baseline-of-the-baseline: linear Cox (no hidden layers). Higher lr and weight_decay than omics_mlp because there is no BN/dropout to regularize. hidden_dims/dropout/use_batchnorm are ignored by the LinearCox factory; left at baseline values to make this config a minimal diff of brca_omics_baseline.json.",
+  "config_version": 1
+}

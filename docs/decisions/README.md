@@ -13,3 +13,4 @@ superseded by a later ADR that references them.
 | 0003 | [cBioPortal as the Stage-2-lite data source](0003-cbioportal-data-source.md) | Accepted |
 | 0004 | [5-fold stratified CV as the evaluation harness](0004-5fold-cv-harness.md) | Accepted |
 | 0005 | [Structured JSON run logs as the Stage 3 → Stage 4 contract](0005-run-log-schema.md) | Accepted |
+| 0006 | [Linear Cox reference baseline](0006-linear-cox-reference-baseline.md) | Accepted |
