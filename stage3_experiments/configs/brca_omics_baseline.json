@@ -13,11 +13,11 @@
   "optimizer": "adam",
   "lr": 1e-4,
   "weight_decay": 1e-4,
-  "batch_size": 128,
+  "batch_size": null,
   "epochs": 50,
   "early_stopping_patience": 10,
   "val_fraction": 0.1,
   "n_folds": 5,
-  "notes": "ADR 0001/0002/0004 baseline. Omics-only MLP on top-500 variable genes, Cox PH loss, 5-fold stratified CV.",
+  "notes": "ADR 0001/0002/0004/0007 baseline. Omics-only MLP on top-500 variable genes, Cox PH loss, 5-fold stratified CV, full-batch gradient descent (batch_size=null).",
   "config_version": 1
 }

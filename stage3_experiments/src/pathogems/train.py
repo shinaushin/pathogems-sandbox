@@ -138,13 +138,17 @@ def train_one_fold(
     e_te = _to_t(fold.event_test)
 
     # NB: Cox PH is a rank-based loss; we want each mini-batch to contain
-    # enough events that the risk set is meaningful. TensorDataset + shuffle
-    # works because our cohorts are small enough that big batches fit in
-    # memory trivially.
+    # enough events that the risk set is meaningful. `batch_size=None`
+    # means full-batch — the entire training fold is one "batch", which
+    # is what the partial likelihood is actually defined over. For TCGA
+    # cohorts (<~1200 patients) this fits on CPU trivially and removes
+    # the approximation of treating each mini-batch as its own risk set.
+    # An explicit int keeps the original mini-batch behavior.
+    effective_bs = x_tr.shape[0] if config.batch_size is None else config.batch_size
     loader = DataLoader(
         TensorDataset(x_tr, t_tr, e_tr),
-        batch_size=config.batch_size,
-        shuffle=True,
+        batch_size=effective_bs,
+        shuffle=config.batch_size is not None,  # no shuffle needed when batch == dataset
         drop_last=False,
     )
 

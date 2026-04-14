@@ -50,9 +50,14 @@ class ExperimentConfig:
         optimizer: "adam" or "sgd".
         lr: Learning rate.
         weight_decay: L2 coefficient.
-        batch_size: Batch size. For Cox PH training we want batches big
-            enough that most batches contain events; 128 is a safe default
-            for TCGA-BRCA.
+        batch_size: Batch size. `None` means *full-batch* training —
+            the entire training fold becomes the risk set at every
+            gradient step. Full-batch is the theoretically correct
+            setting for Cox PH partial likelihood (the risk set in the
+            population loss is every at-risk patient), and TCGA cohorts
+            are small enough (<~1200 patients) that it fits on CPU. For
+            larger cohorts or when mini-batching is desired, set an
+            explicit int. 128 was the old default and is known to work.
         epochs: Max epochs. Early stopping may cut short.
         early_stopping_patience: Epochs of no validation improvement
             before stopping. 0 disables.
@@ -83,7 +88,7 @@ class ExperimentConfig:
     optimizer: str = "adam"
     lr: float = 1e-4
     weight_decay: float = 1e-4
-    batch_size: int = 128
+    batch_size: int | None = None
     epochs: int = 50
     early_stopping_patience: int = 10
     val_fraction: float = 0.1

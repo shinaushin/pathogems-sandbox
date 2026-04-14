@@ -35,3 +35,23 @@ class TestExperimentConfig:
     def test_unknown_version_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown config_version"):
             ExperimentConfig.from_dict({"name": "x", "config_version": 999})
+
+    def test_batch_size_none_roundtrips_as_json_null(self, tmp_path: Path) -> None:
+        """`batch_size=None` (full-batch) must survive a JSON round-trip.
+
+        JSON's natural representation of None is `null`, and dataclass
+        `from_dict` should accept it without any coercion. This test
+        pins the contract so a future "make batch_size int only" change
+        explicitly breaks the test instead of silently breaking configs.
+        """
+        cfg = ExperimentConfig(name="fullbatch", batch_size=None)
+        p = tmp_path / "cfg.json"
+        cfg.to_json(p)
+        raw = json.loads(p.read_text())
+        assert raw["batch_size"] is None
+        back = ExperimentConfig.from_json(p)
+        assert back.batch_size is None
+
+    def test_batch_size_default_is_none(self) -> None:
+        """The default is full-batch (ADR 0007)."""
+        assert ExperimentConfig(name="x").batch_size is None

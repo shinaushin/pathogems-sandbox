@@ -13,7 +13,7 @@
   "optimizer": "adam",
   "lr": 1e-3,
   "weight_decay": 1e-3,
-  "batch_size": 128,
+  "batch_size": null,
   "epochs": 100,
   "early_stopping_patience": 15,
   "val_fraction": 0.1,
