@@ -1,0 +1,67 @@
+# Continuous integration for the PathoGems Stage 3 experiment harness.
+#
+# Runs on every push and PR to master. Three parallel jobs:
+#   1. Lint + format check (ruff, fast, no conda).
+#   2. Type check (mypy, fast, no conda).
+#   3. Tests (pytest, requires conda env for torch + scikit-survival).
+#
+# The slow end-to-end smoke test (~5-10s on CPU) is included in the
+# test job. If it ever becomes flaky, gate it behind `pytest -m slow`
+# and run it in a separate nightly job.
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff lint + format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-ruff@v1
+        with:
+          version: "0.4.8"
+      - name: Ruff format check
+        run: ruff format --check --config stage3_experiments/pyproject.toml stage3_experiments/
+      - name: Ruff lint
+        run: ruff check --config stage3_experiments/pyproject.toml stage3_experiments/
+
+  typecheck:
+    name: Mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install mypy + stubs
+        run: pip install mypy types-requests
+      - name: Run mypy
+        run: mypy --config-file stage3_experiments/pyproject.toml stage3_experiments/src/
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: pathogems
+          auto-activate-base: false
+      - name: Install package in editable mode
+        run: |
+          cd stage3_experiments
+          pip install -e .
+      - name: Run tests (including slow smoke test)
+        run: pytest stage3_experiments/tests -v --tb=short

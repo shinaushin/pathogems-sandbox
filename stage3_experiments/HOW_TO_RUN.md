@@ -24,8 +24,11 @@ cd ..
 ## 3. Run the tests
 
 ```bash
-pytest stage3_experiments/tests -q
+make test        # full suite including slow smoke test
+make test-fast   # skip the slow smoke test (~1 second)
 ```
+
+Or without the Makefile: `pytest stage3_experiments/tests -q`
 
 Expected output: all tests pass. The end-to-end smoke test
 (`test_smoke_end_to_end.py`) takes ~5–10 seconds on CPU and confirms the
@@ -74,3 +77,50 @@ a time. Examples we expect to queue up:
 
 Each produces a run log. Stage 4 (not yet implemented) will consume the
 logs directory and propose the next experiment.
+
+## 8. (Optional) Enable MLflow tracking
+
+To track runs in MLflow, add these fields to any config JSON:
+
+```json
+{
+  "enable_mlflow": true,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems"
+}
+```
+
+With `mlflow_tracking_uri: null`, MLflow writes to `./mlruns/` in the
+working directory. Launch the UI with:
+
+```bash
+mlflow ui --port 5000
+```
+
+Then visit http://localhost:5000. The JSON run log is attached as an
+artifact to each MLflow run, so the tracker has everything the log has.
+
+If MLflow is not installed (`pip install mlflow`), training continues
+normally with a printed warning. See ADR 0008 for rationale.
+
+## Developer shortcuts
+
+The top-level `Makefile` provides convenience targets:
+
+```bash
+make help       # list all targets
+make lint       # ruff lint (auto-fix)
+make format     # ruff format
+make typecheck  # mypy strict
+make test       # full pytest suite
+make test-fast  # skip slow tests
+make install    # pip install -e stage3_experiments
+make clean      # remove __pycache__ and build artifacts
+```
+
+Pre-commit hooks mirror the CI checks locally. Install once:
+
+```bash
+pip install pre-commit
+pre-commit install
+```

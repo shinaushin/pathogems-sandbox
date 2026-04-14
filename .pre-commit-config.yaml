@@ -1,0 +1,33 @@
+# Pre-commit hooks — install with:
+#   pre-commit install
+#   pre-commit run --all-files  # one-off full check
+#
+# Keeps commits clean without CI round-trips. The three hooks mirror what
+# CI runs, so a green local commit should be a green remote build.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      # Ruff format — replaces black. Runs first so lint sees already-
+      # formatted code.
+      - id: ruff-format
+        args: [--config=stage3_experiments/pyproject.toml]
+        files: ^stage3_experiments/
+      # Ruff lint — covers pyflakes, pycodestyle, isort, bugbear, etc.
+      - id: ruff
+        args: [--fix, --config=stage3_experiments/pyproject.toml]
+        files: ^stage3_experiments/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        # Mypy needs the actual deps available to type-check. Passing
+        # --ignore-missing-imports is *not* enough because our own
+        # modules cross-import. So we list the stubs that are cheap to
+        # install; the rest are covered by the [[tool.mypy.overrides]]
+        # in pyproject.toml.
+        additional_dependencies: [types-requests]
+        args:
+          - --config-file=stage3_experiments/pyproject.toml
+        files: ^stage3_experiments/src/
