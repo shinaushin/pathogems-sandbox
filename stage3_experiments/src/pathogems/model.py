@@ -196,20 +196,25 @@ def _build_linear_cox(in_features: int, config: "ExperimentConfig") -> nn.Module
     common case of "copy the MLP config, change only `model`" to work
     without requiring field cleanup.
     """
-    # Defaults from ExperimentConfig — import deferred to avoid a cycle.
-    from .config import ExperimentConfig as _EC  # noqa: N813
+    # Defaults mirror ExperimentConfig's field defaults. We hard-code them
+    # here rather than reading class attributes because ExperimentConfig
+    # uses `slots=True`, which removes class-level defaults and causes a
+    # mypy error if accessed as `ExperimentConfig.hidden_dims`.
+    _DEFAULT_HIDDEN_DIMS = (128, 32)
+    _DEFAULT_DROPOUT = 0.3
+    _DEFAULT_USE_BATCHNORM = True
 
-    if config.hidden_dims != _EC.hidden_dims:
+    if config.hidden_dims != _DEFAULT_HIDDEN_DIMS:
         log.warning(
             "linear_cox ignores hidden_dims=%s (config has non-default value).",
             config.hidden_dims,
         )
-    if config.dropout != _EC.dropout:
+    if config.dropout != _DEFAULT_DROPOUT:
         log.warning(
             "linear_cox ignores dropout=%.2f (config has non-default value).",
             config.dropout,
         )
-    if config.use_batchnorm != _EC.use_batchnorm:
+    if config.use_batchnorm != _DEFAULT_USE_BATCHNORM:
         log.warning(
             "linear_cox ignores use_batchnorm=%s (config has non-default value).",
             config.use_batchnorm,

@@ -89,7 +89,7 @@ class SurvivalCohort:
 
     @property
     def n_genes(self) -> int:
-        return self.expression.shape[1]
+        return int(self.expression.shape[1])
 
     @property
     def event_rate(self) -> float:

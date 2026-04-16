@@ -145,7 +145,7 @@ def write_run_log(
 
 def read_run_log(path: Path) -> dict[str, Any]:
     """Load a run log and assert schema_version matches what we know."""
-    data = json.loads(path.read_text())
+    data: dict[str, Any] = json.loads(path.read_text())
     v = data.get("schema_version")
     if v != SCHEMA_VERSION:
         raise ValueError(

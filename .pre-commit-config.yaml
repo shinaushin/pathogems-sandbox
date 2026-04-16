@@ -22,12 +22,15 @@ repos:
     rev: v1.10.0
     hooks:
       - id: mypy
-        # Mypy needs the actual deps available to type-check. Passing
-        # --ignore-missing-imports is *not* enough because our own
-        # modules cross-import. So we list the stubs that are cheap to
-        # install; the rest are covered by the [[tool.mypy.overrides]]
-        # in pyproject.toml.
-        additional_dependencies: [types-requests]
+        # Mypy needs the actual deps to type-check. We list
+        # `types-requests` (the only stub-only package we use) and
+        # the core numeric/ML packages. Third-party libs without
+        # stubs (torch, sklearn, mlflow, sksurv, lifelines) are
+        # covered by `ignore_missing_imports` in pyproject.toml.
+        additional_dependencies:
+          - types-requests
+          - numpy>=1.26
+          - pandas-stubs
         args:
           - --config-file=stage3_experiments/pyproject.toml
         files: ^stage3_experiments/src/

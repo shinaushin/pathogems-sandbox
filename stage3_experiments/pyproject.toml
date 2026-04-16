@@ -61,9 +61,18 @@ strict = true
 warn_unreachable = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-# Third-party libs without complete stubs.
+# Third-party libs without complete stubs. Even when running mypy inside
+# the conda env, torch/sklearn/mlflow ship only partial or no stubs.
+# Silencing import errors for these lets us keep strict mode for our own
+# code without drowning in third-party noise.
 [[tool.mypy.overrides]]
-module = ["sksurv.*", "lifelines.*"]
+module = [
+  "sksurv.*",
+  "lifelines.*",
+  "torch.*",
+  "sklearn.*",
+  "mlflow.*",
+]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

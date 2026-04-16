@@ -2,7 +2,8 @@
 #
 # Runs on every push and PR to master. Three parallel jobs:
 #   1. Lint + format check (ruff, fast, no conda).
-#   2. Type check (mypy, fast, no conda).
+#   2. Type check (mypy — runs inside the conda env so it sees real
+#      package types from torch, numpy, pandas, etc.).
 #   3. Tests (pytest, requires conda env for torch + scikit-survival).
 #
 # The slow end-to-end smoke test (~5-10s on CPU) is included in the
@@ -25,9 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-ruff@v1
+      - uses: actions/setup-python@v5
         with:
-          version: "0.4.8"
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install "ruff==0.4.8"
       - name: Ruff format check
         run: ruff format --check --config stage3_experiments/pyproject.toml stage3_experiments/
       - name: Ruff lint
@@ -36,13 +39,26 @@ jobs:
   typecheck:
     name: Mypy
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # Mypy needs to see the actual packages (torch, numpy, pandas, sklearn)
+      # to type-check imports and attribute accesses. Running it outside the
+      # conda env with only stub packages misses too much and produces a wall
+      # of import-not-found noise. Using the full conda env is slower (~2 min)
+      # but gives meaningful results.
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.11"
-      - name: Install mypy + stubs
-        run: pip install mypy types-requests
+          environment-file: environment.yml
+          activate-environment: pathogems
+          auto-activate-base: false
+          miniforge-version: latest
+      - name: Install package (needed for intra-package imports)
+        run: |
+          cd stage3_experiments
+          pip install -e .
       - name: Run mypy
         run: mypy --config-file stage3_experiments/pyproject.toml stage3_experiments/src/
 
@@ -59,6 +75,7 @@ jobs:
           environment-file: environment.yml
           activate-environment: pathogems
           auto-activate-base: false
+          miniforge-version: latest
       - name: Install package in editable mode
         run: |
           cd stage3_experiments

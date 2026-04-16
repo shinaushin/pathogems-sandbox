@@ -9,39 +9,44 @@
 # on any machine; swap in the appropriate pytorch-cuda meta-package locally if
 # you have a GPU.
 name: pathogems
+# Channel priority matters: conda-forge first for most packages, pytorch
+# channel only for pytorch itself. Dropping `defaults` avoids license-
+# gated Anaconda packages that can cause "channel not available" errors
+# on CI runners using miniforge/mambaforge.
 channels:
   - pytorch
   - conda-forge
-  - defaults
 dependencies:
   - python=3.11
   - pip
 
   # ---- Core scientific stack ----
-  - numpy=1.26.*
-  - pandas=2.2.*
-  - scipy=1.13.*
-  - scikit-learn=1.4.*
+  - numpy>=1.26,<1.28
+  - pandas>=2.2,<2.3
+  - scipy>=1.13,<1.15
+  - scikit-learn>=1.4,<1.6
 
   # ---- Deep learning (CPU build; swap for pytorch-cuda locally if needed) ----
-  - pytorch=2.2.*
-  - cpuonly
+  # `pytorch::pytorch` explicitly pulls from the pytorch channel.
+  # `cpuonly` is a pytorch-channel meta-package that prevents CUDA deps.
+  - pytorch::pytorch>=2.2,<2.6
+  - pytorch::cpuonly
 
   # ---- Survival analysis (Harrell's C-index, IBS, Kaplan-Meier) ----
-  - lifelines=0.28.*
+  - lifelines>=0.28,<0.30
 
   # ---- HTTP / data fetching ----
-  - requests=2.31.*
+  - requests>=2.31,<2.33
 
   # ---- Dev tooling ----
-  - pytest=8.*
-  - pytest-cov=5.*
-  - mypy=1.10.*
-  - ruff=0.4.*
+  - pytest>=8,<9
+  - pytest-cov>=5,<6
+  - mypy>=1.10,<2
+  - ruff>=0.4,<1
   - types-requests
 
   # ---- Packages only on PyPI ----
   - pip:
       - anthropic>=0.30.0           # Claude SDK for Stage 1 and Stage 4 agents
-      - scikit-survival==0.22.*     # Cox utilities & reference C-index impl
+      - scikit-survival>=0.22,<0.24 # Cox utilities & reference C-index impl
       - mlflow>=2.12,<3.0           # Experiment tracking (ADR 0008)
