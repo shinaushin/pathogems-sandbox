@@ -44,7 +44,6 @@ class Registry(Generic[T]):
 
         model = MODEL_REGISTRY.get("omics_mlp")(in_features=500, ...)
     """
-
     __slots__ = ("_kind", "_entries")
 
     def __init__(self, kind: str) -> None:

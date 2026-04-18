@@ -113,7 +113,10 @@ class TestParsers:
         assert expr.shape == (6, 4)
         assert set(expr.columns) == {"TP53", "BRCA1", "MYC", "KRAS"}
 
-    def test_clinical_patient_strips_comment_header(self, tiny_cbioportal: dict[str, Path]) -> None:
+    def test_clinical_patient_strips_comment_header(
+        self,
+        tiny_cbioportal: dict[str, Path],
+    ) -> None:
         clin = load_clinical_patient(tiny_cbioportal["patient"])
         assert len(clin) == 5
         assert set(clin.columns) == {"PATIENT_ID", "OS_STATUS", "OS_MONTHS"}
@@ -164,14 +167,19 @@ class TestAssembleCohort:
 # Preprocessor
 # --------------------------------------------------------------------------- #
 def _make_cohort(
-    n_patients: int = 80, n_genes: int = 50, event_rate: float = 0.4, seed: int = 0
+    n_patients: int = 80,
+    n_genes: int = 50,
+    event_rate: float = 0.4,
+    seed: int = 0,
 ) -> SurvivalCohort:
     """Synthetic cohort for preprocessing / CV tests (no file I/O)."""
     rng = np.random.default_rng(seed)
     patients = [f"P{i:03d}" for i in range(n_patients)]
     genes = [f"G{i:03d}" for i in range(n_genes)]
     expr = pd.DataFrame(
-        rng.uniform(0, 500, size=(n_patients, n_genes)), index=patients, columns=genes
+        rng.uniform(0, 500, size=(n_patients, n_genes)),
+        index=patients,
+        columns=genes,
     )
     event = pd.Series(rng.binomial(1, event_rate, size=n_patients), index=patients)
     time = pd.Series(rng.uniform(1, 120, size=n_patients).astype(float), index=patients)
