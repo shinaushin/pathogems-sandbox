@@ -48,6 +48,7 @@ class FoldResult:
     convergence can be inspected after the fact — either plotted via MLflow
     or dumped into the run log for Stage 4 analysis.
     """
+
     fold_id: int
     c_index: float  # held-out test-fold C-index — this is the headline number
     final_train_loss: float
@@ -62,6 +63,7 @@ class FoldResult:
 @dataclass(frozen=True, slots=True)
 class CVResult:
     """Aggregate of all folds."""
+
     folds: list[FoldResult]
 
     @property

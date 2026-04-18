@@ -44,6 +44,7 @@ class Registry(Generic[T]):
 
         model = MODEL_REGISTRY.get("omics_mlp")(in_features=500, ...)
     """
+
     __slots__ = ("_kind", "_entries")
 
     def __init__(self, kind: str) -> None:
@@ -58,7 +59,6 @@ class Registry(Generic[T]):
         composes with other decorators and can be applied to plain
         functions, classes, or pre-constructed values.
         """
-
         def decorator(obj: T) -> T:
             if name in self._entries:
                 raise ValueError(
