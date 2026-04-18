@@ -219,7 +219,7 @@ def assemble_cohort(
     primary_samples = sample_map.loc[is_primary, [COL_SAMPLE_ID, COL_PATIENT_ID]]
 
     # Restrict expression to primary samples we have mappings for.
-    expr = expr.loc[expr.index.intersection(primary_samples[COL_SAMPLE_ID])]
+    expr = expr.loc[expr.index.intersection(primary_samples[COL_SAMPLE_ID].tolist())]
     # Attach patient id to each expression row and average per patient.
     sample_to_patient = primary_samples.set_index(COL_SAMPLE_ID)[COL_PATIENT_ID]
     expr = expr.assign(_patient=sample_to_patient.loc[expr.index].to_numpy())

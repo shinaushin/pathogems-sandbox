@@ -64,7 +64,7 @@ class Registry(Generic[T]):
             if name in self._entries:
                 raise ValueError(
                     f"{self._kind}: name {name!r} is already registered "
-                    f"(existing: {self._entries[name]!r}).",
+                    f"(existing: {self._entries[name]!r})."
                 )
             self._entries[name] = obj
             return obj
@@ -78,7 +78,7 @@ class Registry(Generic[T]):
             hint = f" Did you mean: {close}?" if close else ""
             raise KeyError(
                 f"Unknown {self._kind}: {name!r}. "
-                f"Registered: {sorted(self._entries)}.{hint}",
+                f"Registered: {sorted(self._entries)}.{hint}"
             )
         return self._entries[name]
 

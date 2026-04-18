@@ -94,15 +94,14 @@ def main(argv: list[str] | None = None) -> int:
     # Fail fast on config errors — we have no run name to log against yet.
     config = ExperimentConfig.from_json(args.config)
 
-    # Validate study directory before entering the (slow) training loop.
     study_dir = Path(config.study_data_dir)
-    _validate_study_dir(study_dir)
-
     started_at = datetime.now(UTC)
     # `track_run` yields a no-op tracker when enable_mlflow=False, so the
     # happy and tracked paths are identical code.
     with track_run(config) as tracker:
         try:
+            # Validate study directory before entering the (slow) training loop.
+            _validate_study_dir(study_dir)
             cohort = assemble_cohort(
                 expression_path=study_dir / "data_mrna_seq_v2_rsem.txt",
                 clinical_patient_path=study_dir / "data_clinical_patient.txt",

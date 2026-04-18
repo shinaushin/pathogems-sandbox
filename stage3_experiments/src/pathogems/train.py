@@ -92,10 +92,7 @@ class CVResult:
 # Inner train/val split
 # --------------------------------------------------------------------------- #
 def _inner_split(
-    n_train: int,
-    val_fraction: float,
-    event_train: np.ndarray,
-    seed: int,
+    n_train: int, val_fraction: float, event_train: np.ndarray, seed: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """Split the training fold into inner train / val for early stopping.
 
@@ -106,10 +103,7 @@ def _inner_split(
     # train_test_split handles the stratify-by-event case and keeps the
     # resulting indices aligned with the input order.
     inner_train, inner_val = train_test_split(
-        idx,
-        test_size=val_fraction,
-        random_state=seed,
-        stratify=event_train,
+        idx, test_size=val_fraction, random_state=seed, stratify=event_train
     )
     return inner_train, inner_val
 
@@ -118,10 +112,7 @@ def _inner_split(
 # Single-fold training
 # --------------------------------------------------------------------------- #
 def train_one_fold(
-    fold: FoldTensors,
-    config: ExperimentConfig,
-    fold_id: int,
-    device: torch.device | None = None,
+    fold: FoldTensors, config: ExperimentConfig, fold_id: int, device: torch.device | None = None
 ) -> FoldResult:
     """Train one model on `fold`, return its held-out C-index and metadata."""
     device = device or torch.device("cpu")

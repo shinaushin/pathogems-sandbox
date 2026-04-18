@@ -58,6 +58,7 @@ class TestCLIFailurePath:
         logs_dir = tmp_path / "logs"
         # Mock assemble_cohort to succeed but cross_validate to blow up.
         with (
+            mock.patch("pathogems.cli._validate_study_dir"),
             mock.patch("pathogems.cli.assemble_cohort") as fake_assemble,
             mock.patch(
                 "pathogems.cli.cross_validate",

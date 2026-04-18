@@ -37,9 +37,7 @@ class TestTrackRun:
             assert isinstance(tracker, _NullTracker)
 
     def test_enabled_but_mlflow_missing_falls_back_to_null(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        caplog: pytest.LogCaptureFixture,
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """If mlflow is not importable, tracker degrades gracefully.
 
