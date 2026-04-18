@@ -59,7 +59,10 @@ class TestCLIFailurePath:
         # Mock assemble_cohort to succeed but cross_validate to blow up.
         with (
             mock.patch("pathogems.cli.assemble_cohort") as fake_assemble,
-            mock.patch("pathogems.cli.cross_validate", side_effect=RuntimeError("training blew up")),
+            mock.patch(
+                "pathogems.cli.cross_validate",
+                side_effect=RuntimeError("training blew up"),
+            ),
         ):
             fake_assemble.return_value = mock.MagicMock(n_patients=10, n_genes=5, event_rate=0.3)
             with pytest.raises(RuntimeError, match="training blew up"):

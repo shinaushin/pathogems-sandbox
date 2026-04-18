@@ -76,8 +76,13 @@ class SurvivalCohort:
     def __post_init__(self) -> None:
         # Defensive invariants — expensive bugs further down the pipeline
         # are cheaper to prevent than to debug.
-        if not (self.expression.index.equals(self.time.index) and self.time.index.equals(self.event.index)):
-            raise ValueError("expression / time / event must share an identical index in the same order.")
+        if not (
+            self.expression.index.equals(self.time.index)
+            and self.time.index.equals(self.event.index)
+        ):
+            raise ValueError(
+                "expression / time / event must share an identical index in the same order."
+            )
         if self.event.isin([0, 1]).sum() != len(self.event):
             raise ValueError("event must be 0/1 only.")
         if (self.time < 0).any():
@@ -139,7 +144,9 @@ def load_expression_matrix(path: Path) -> pd.DataFrame:
     """
     df = pd.read_csv(path, sep="\t")
     if "Hugo_Symbol" not in df.columns:
-        raise ValueError(f"{path} does not look like a cBioPortal RSEM matrix (no Hugo_Symbol column).")
+        raise ValueError(
+            f"{path} does not look like a cBioPortal RSEM matrix (no Hugo_Symbol column)."
+        )
 
     # Drop the non-feature metadata columns; everything else is a sample.
     meta_cols = [c for c in ("Hugo_Symbol", "Entrez_Gene_Id") if c in df.columns]

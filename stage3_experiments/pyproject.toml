@@ -12,7 +12,6 @@ build-backend = "setuptools.build_meta"
 name = "pathogems"
 version = "0.1.0"
 description = "Stage 3 experiment harness for multimodal cancer survival prediction."
-readme = "../README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Austin Shin", email = "shinaushin@gmail.com" }]
 # Runtime deps are managed by conda (see environment.yml). We only list here

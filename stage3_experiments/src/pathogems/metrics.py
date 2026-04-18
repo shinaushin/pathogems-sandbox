@@ -112,5 +112,7 @@ def concordance_index_scikit_survival(
     """Thin wrapper around `sksurv.metrics.concordance_index_censored` for testing."""
     from sksurv.metrics import concordance_index_censored  # local import keeps it optional
 
-    cindex, *_ = concordance_index_censored(event.astype(bool), time.astype(float), risk.astype(float))
+    cindex, *_ = concordance_index_censored(
+        event.astype(bool), time.astype(float), risk.astype(float)
+    )
     return float(cindex)

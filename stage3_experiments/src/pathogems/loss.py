@@ -80,7 +80,9 @@ def cox_ph_loss(
         ValueError: if input shapes disagree or are not 1-D.
     """
     if risk.dim() != 1 or time.dim() != 1 or event.dim() != 1:
-        raise ValueError(f"All inputs must be 1-D; got shapes {risk.shape}, {time.shape}, {event.shape}.")
+        raise ValueError(
+            f"All inputs must be 1-D; got shapes {risk.shape}, {time.shape}, {event.shape}."
+        )
     if not (risk.shape == time.shape == event.shape):
         raise ValueError("risk, time, and event must share shape.")
 
@@ -114,5 +116,7 @@ def cox_ph_loss(
 # signature — callers who want a non-default epsilon should import
 # `cox_ph_loss` directly.
 @LOSS_REGISTRY.register("cox_ph")
-def _cox_ph_loss_default(risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor) -> torch.Tensor:
+def _cox_ph_loss_default(
+    risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor
+) -> torch.Tensor:
     return cox_ph_loss(risk, time, event)
