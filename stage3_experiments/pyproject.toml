@@ -60,6 +60,13 @@ strict = true
 warn_unreachable = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+# Two strict-mode settings relaxed for an ML research codebase:
+# - disallow_any_generics: numpy's ndarray is generic but annotating
+#   ndarray[Any, dtype[Any]] everywhere is noise with no type-safety gain.
+# - warn_return_any: torch/numpy ops are typed as returning Any in partial
+#   stubs; requiring cast() on every arithmetic result blocks development.
+disallow_any_generics = false
+warn_return_any = false
 # Third-party libs without complete stubs. Even when running mypy inside
 # the conda env, torch/sklearn/mlflow ship only partial or no stubs.
 # Silencing import errors for these lets us keep strict mode for our own

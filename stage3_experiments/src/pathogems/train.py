@@ -106,7 +106,10 @@ def _inner_split(
     # train_test_split handles the stratify-by-event case and keeps the
     # resulting indices aligned with the input order.
     inner_train, inner_val = train_test_split(
-        idx, test_size=val_fraction, random_state=seed, stratify=event_train
+        idx,
+        test_size=val_fraction,
+        random_state=seed,
+        stratify=event_train,
     )
     return inner_train, inner_val
 
@@ -184,7 +187,7 @@ def train_one_fold(
             risk = model(xb)
             loss = loss_fn(risk, tb, eb)
             if torch.isfinite(loss):
-                loss.backward()
+                loss.backward()  # type: ignore[no-untyped-call]
                 # Gradient clipping: Cox PH can produce large gradients
                 # when a single patient dominates the risk set. Clipping
                 # to a global norm of `max_grad_norm` prevents NaN
@@ -248,9 +251,7 @@ def cross_validate(
     splits = cv_splits(cohort, n_folds=config.n_folds, seed=config.seed)
     folds: list[FoldResult] = []
     for fold_id, (train_idx, test_idx) in enumerate(splits):
-        tensors = build_fold_tensors(
-            cohort, train_idx, test_idx, top_k=config.top_k_genes
-        )
+        tensors = build_fold_tensors(cohort, train_idx, test_idx, top_k=config.top_k_genes)
         result = train_one_fold(tensors, config, fold_id=fold_id, device=device)
         if verbose:
             log.info(

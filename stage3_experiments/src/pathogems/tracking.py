@@ -134,7 +134,7 @@ def track_run(config: "ExperimentConfig") -> Iterator[_NullTracker | _MLflowTrac
     except ImportError:
         log.warning(
             "mlflow not installed — `pip install mlflow` to enable. "
-            "Continuing without tracking."
+            "Continuing without tracking.",
         )
         yield _NullTracker()
         return

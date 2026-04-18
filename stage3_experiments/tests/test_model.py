@@ -93,7 +93,10 @@ class TestLinearCox:
         bias = model.linear.bias.detach()
         f = lambda x: model(x) - bias
         torch.testing.assert_close(
-            f(a * x1 + b * x2), a * f(x1) + b * f(x2), rtol=1e-5, atol=1e-5
+            f(a * x1 + b * x2),
+            a * f(x1) + b * f(x2),
+            rtol=1e-5,
+            atol=1e-5,
         )
 
     def test_parameter_count(self) -> None:
