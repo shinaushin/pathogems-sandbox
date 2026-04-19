@@ -255,8 +255,7 @@ def cross_validate(
         result = train_one_fold(tensors, config, fold_id=fold_id, device=device)
         if verbose:
             log.info(
-                "fold %d/%d  C-index=%.4f  val_loss=%.4f  "
-                "epochs=%d (best@%d)  %.1fs",
+                "fold %d/%d  C-index=%.4f  val_loss=%.4f  " "epochs=%d (best@%d)  %.1fs",
                 fold_id + 1,
                 config.n_folds,
                 result.c_index,

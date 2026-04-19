@@ -59,6 +59,7 @@ class Registry(Generic[T]):
         composes with other decorators and can be applied to plain
         functions, classes, or pre-constructed values.
         """
+
         def decorator(obj: T) -> T:
             if name in self._entries:
                 raise ValueError(
@@ -76,8 +77,7 @@ class Registry(Generic[T]):
             close = difflib.get_close_matches(name, self._entries.keys(), n=3, cutoff=0.5)
             hint = f" Did you mean: {close}?" if close else ""
             raise KeyError(
-                f"Unknown {self._kind}: {name!r}. "
-                f"Registered: {sorted(self._entries)}.{hint}"
+                f"Unknown {self._kind}: {name!r}. " f"Registered: {sorted(self._entries)}.{hint}"
             )
         return self._entries[name]
 

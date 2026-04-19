@@ -27,6 +27,7 @@ class TestNullTracker:
         # it is covered indirectly by `test_track_run_disabled_yields_null`.
         # A non-existent path is fine for log_artifact too.
         from pathlib import Path
+
         t.log_artifact(Path("/tmp/does_not_exist"))
 
 

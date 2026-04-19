@@ -224,9 +224,9 @@ class TestPreprocessor:
         # Train is centered; test is NOT exactly centered (it was standardized
         # with train's mean/std, not its own).
         np.testing.assert_allclose(x_train.mean(axis=0), 0.0, atol=1e-5)
-        assert np.max(np.abs(x_test.mean(axis=0))) > 1e-3, (
-            "Test set appears centered — preprocessor is leaking test-fold statistics."
-        )
+        assert (
+            np.max(np.abs(x_test.mean(axis=0))) > 1e-3
+        ), "Test set appears centered — preprocessor is leaking test-fold statistics."
 
     def test_top_k_exceeds_genes_raises(self) -> None:
         cohort = _make_cohort(n_genes=5)
