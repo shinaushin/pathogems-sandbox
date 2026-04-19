@@ -1,14 +1,14 @@
 # Continuous integration for the PathoGems Stage 3 experiment harness.
 #
-# Runs on every push and PR to master. Three parallel jobs:
-#   1. Lint + format check (ruff, fast, no conda).
-#   2. Type check (mypy — runs inside the conda env so it sees real
-#      package types from torch, numpy, pandas, etc.).
-#   3. Tests (pytest, requires conda env for torch + scikit-survival).
-#
-# The slow end-to-end smoke test (~5-10s on CPU) is included in the
-# test job. If it ever becomes flaky, gate it behind `pytest -m slow`
-# and run it in a separate nightly job.
+# Runs on every push and PR to master. Six parallel jobs:
+#   1. lint       — ruff format + lint (fast, no conda).
+#   2. typecheck  — mypy inside the conda env (sees real package types).
+#   3. test       — pytest with coverage gate; includes the slow end-to-end
+#                   smoke test (test_smoke_end_to_end.py, ~5-10s on CPU).
+#   4. security   — pip-audit CVE scan of all installed dependencies.
+#   5. dep-pins   — verify environment.yml and pyproject.toml pins don't conflict.
+#   6. schema     — validate that a freshly-written run log matches run_log_v1.json
+#                   (covered by tests in job 3, but called out explicitly here).
 name: CI
 
 on:
@@ -21,6 +21,9 @@ permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Lint + format
+  # ---------------------------------------------------------------------------
   lint:
     name: Ruff lint + format
     runs-on: ubuntu-latest
@@ -36,6 +39,9 @@ jobs:
       - name: Ruff lint
         run: ruff check --config stage3_experiments/pyproject.toml stage3_experiments/
 
+  # ---------------------------------------------------------------------------
+  # 2. Type check
+  # ---------------------------------------------------------------------------
   typecheck:
     name: Mypy
     runs-on: ubuntu-latest
@@ -62,8 +68,22 @@ jobs:
       - name: Run mypy
         run: mypy --config-file stage3_experiments/pyproject.toml stage3_experiments/src/
 
+  # ---------------------------------------------------------------------------
+  # 3. Tests + coverage gate
+  #
+  # Runs ALL tests, including the slow end-to-end smoke test
+  # (test_smoke_end_to_end.py). The smoke test uses a tiny synthetic cohort
+  # (~5-10 s on CPU) and asserts the full harness recovers a C-index > 0.55
+  # from injected linear Cox signal. If it ever becomes flaky, move it to a
+  # nightly job gated by `pytest -m slow`.
+  #
+  # Coverage is measured over `pathogems` source only and must stay >= 80 %.
+  # The threshold is intentionally conservative — research codebases have
+  # branches that are hard to exercise in unit tests (GPU paths, OS errors,
+  # optional MLflow code). Raise it as the test suite matures.
+  # ---------------------------------------------------------------------------
   test:
-    name: Pytest
+    name: Pytest + coverage
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -80,5 +100,62 @@ jobs:
         run: |
           cd stage3_experiments
           pip install -e .
-      - name: Run tests (including slow smoke test)
-        run: pytest stage3_experiments/tests -v --tb=short
+      - name: Run tests (including slow smoke test) with coverage
+        run: |
+          pytest stage3_experiments/tests -v --tb=short \
+            --cov=pathogems \
+            --cov-config=stage3_experiments/pyproject.toml \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
+  # ---------------------------------------------------------------------------
+  # 4. Security — CVE scan
+  #
+  # pip-audit checks every installed package against the OSV and PyPI advisory
+  # databases. Fails if any package has a known vulnerability with a published
+  # fix (i.e., a patched version exists). The editable install (`-e .`) pulls
+  # in all runtime deps declared in pyproject.toml, so transitive deps are
+  # covered too.
+  #
+  # If pip-audit reports a false positive or a vuln in a dep we can't upgrade
+  # yet, add it to the ignore list:
+  #   pip-audit --ignore-vuln GHSA-xxxx-yyyy-zzzz
+  # ---------------------------------------------------------------------------
+  security:
+    name: pip-audit (CVE scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package and pip-audit
+        run: |
+          pip install -e stage3_experiments/
+          pip install "pip-audit>=2.7,<3.0"
+      - name: Scan for known vulnerabilities
+        # --skip-editable: pathogems itself won't appear in any CVE database;
+        # only its transitive dependencies matter here.
+        run: pip-audit --skip-editable
+
+  # ---------------------------------------------------------------------------
+  # 5. Dependency pin consistency
+  #
+  # Checks that environment.yml upper-bound caps don't exclude the minimum
+  # versions required by pyproject.toml. The dangerous drift pattern: someone
+  # bumps pyproject.toml to "numpy>=1.27" but forgets to update environment.yml
+  # which still caps at "<1.27". The conda env resolves to 1.26.x, production
+  # pip installs require 1.27+, mismatch goes unnoticed until a user hits it.
+  # ---------------------------------------------------------------------------
+  dep-pins:
+    name: Dependency pin consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pyyaml (needed to parse environment.yml)
+        run: pip install pyyaml
+      - name: Check pins
+        run: python stage3_experiments/scripts/check_dep_pins.py

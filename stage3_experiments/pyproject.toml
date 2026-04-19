@@ -82,6 +82,19 @@ module = [
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
+# coverage — configured here so `pytest --cov` picks it up without a separate
+# .coveragerc. `source` restricts measurement to our own code so third-party
+# libs don't dilute the percentage.
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["pathogems"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+# ---------------------------------------------------------------------------
 # ruff — lint + format. Keeps diffs clean across commits.
 # ---------------------------------------------------------------------------
 [tool.ruff]

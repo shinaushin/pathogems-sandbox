@@ -75,6 +75,56 @@ class TestBuildRunLog:
             build_run_log(cfg, None, started_at=t0, finished_at=t0, status="unknown", error=None)
 
 
+class TestRunLogSchema:
+    """Validate run logs against the canonical JSON schema (schemas/run_log_v1.json).
+
+    These tests are the machine-readable form of ADR 0005: if the schema file
+    and the writer ever drift, at least one test here will fail loudly rather
+    than letting Stage 4 discover the mismatch at parse time.
+    """
+
+    _SCHEMA_PATH = Path(__file__).parent.parent / "schemas" / "run_log_v1.json"
+
+    def _schema(self) -> dict:
+        return json.loads(self._SCHEMA_PATH.read_text())
+
+    def _validate(self, instance: dict) -> None:
+        import jsonschema
+
+        jsonschema.validate(instance=instance, schema=self._schema())
+
+    def test_success_log_validates(self) -> None:
+        cfg = ExperimentConfig(name="schema_ok")
+        res = _make_result([0.65, 0.68, 0.70, 0.66, 0.69])
+        t0 = datetime(2026, 4, 13, 12, 0, 0, tzinfo=UTC)
+        t1 = datetime(2026, 4, 13, 12, 0, 30, tzinfo=UTC)
+        log = build_run_log(cfg, res, started_at=t0, finished_at=t1, status="success", error=None)
+        self._validate(log)  # raises jsonschema.ValidationError on mismatch
+
+    def test_failed_log_validates(self) -> None:
+        cfg = ExperimentConfig(name="schema_fail")
+        t0 = datetime(2026, 4, 13, tzinfo=UTC)
+        log = build_run_log(
+            cfg, None, started_at=t0, finished_at=t0, status="failed", error="Traceback..."
+        )
+        self._validate(log)
+
+    def test_nan_coerced_to_null_validates(self) -> None:
+        cfg = ExperimentConfig(name="schema_nan")
+        res = _make_result([float("nan"), 0.6, 0.7])
+        t0 = datetime(2026, 4, 13, tzinfo=UTC)
+        log = build_run_log(cfg, res, started_at=t0, finished_at=t0, status="success", error=None)
+        # NaN coerced to None (JSON null) — schema allows ["number", "null"] per fold.
+        self._validate(log)
+
+    def test_schema_file_is_valid_json(self) -> None:
+        """Catch accidental schema corruption (trailing comma, missing brace, etc.)."""
+        raw = self._SCHEMA_PATH.read_text()
+        parsed = json.loads(raw)  # raises on malformed JSON
+        assert parsed.get("$schema") is not None, "Schema file is missing $schema key"
+        assert parsed.get("title") is not None, "Schema file is missing title"
+
+
 class TestWriteRoundTrip:
     def test_write_then_read(self, tmp_path: Path) -> None:
         cfg = ExperimentConfig(name="rt")

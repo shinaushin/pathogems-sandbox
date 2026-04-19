@@ -51,3 +51,5 @@ dependencies:
       - scikit-survival>=0.22,<0.24 # Cox utilities & reference C-index impl
       - mlflow>=2.12,<3.0           # Experiment tracking (ADR 0008)
       - pandas-stubs>=2.2,<2.3      # mypy stubs for pandas (mirrors pandas pin)
+      - jsonschema>=4.22,<5.0       # run-log schema validation in tests
+      - pip-audit>=2.7,<3.0         # CVE scanning in CI security job

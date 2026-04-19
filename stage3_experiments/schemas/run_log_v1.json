@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PathoGems run log v1",
+  "description": "Schema for the Stage 3 → Stage 4 run log contract (ADR 0005). Every file produced by run_log.write_run_log must validate against this schema. Stage 4 consumers should validate on load rather than trusting the file blindly.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_name",
+    "config",
+    "git_sha",
+    "started_at",
+    "finished_at",
+    "wall_clock_sec",
+    "status",
+    "error",
+    "metrics",
+    "environment",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Bump when a backwards-incompatible field change is made."
+    },
+    "run_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique run identifier; used as the log file basename."
+    },
+    "config": {
+      "type": "object",
+      "description": "Full ExperimentConfig as a JSON-serialisable dict.",
+      "required": ["name", "cohort", "seed", "model", "loss", "optimizer", "epochs", "n_folds"],
+      "properties": {
+        "name":                    { "type": "string" },
+        "cohort":                  { "type": "string" },
+        "seed":                    { "type": "integer" },
+        "study_data_dir":          { "type": "string" },
+        "modalities":              { "type": "array", "items": { "type": "string" } },
+        "top_k_genes":             { "type": "integer", "minimum": 1 },
+        "model":                   { "type": "string" },
+        "hidden_dims":             { "type": "array", "items": { "type": "integer" } },
+        "dropout":                 { "type": "number", "minimum": 0, "maximum": 1 },
+        "use_batchnorm":           { "type": "boolean" },
+        "loss":                    { "type": "string" },
+        "optimizer":               { "type": "string" },
+        "lr":                      { "type": "number", "exclusiveMinimum": 0 },
+        "weight_decay":            { "type": "number", "minimum": 0 },
+        "batch_size":              { "type": ["integer", "null"] },
+        "max_grad_norm":           { "type": ["number", "null"] },
+        "epochs":                  { "type": "integer", "minimum": 1 },
+        "early_stopping_patience": { "type": "integer", "minimum": 0 },
+        "val_fraction":            { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "n_folds":                 { "type": "integer", "minimum": 2 },
+        "enable_mlflow":           { "type": "boolean" },
+        "mlflow_tracking_uri":     { "type": ["string", "null"] },
+        "mlflow_experiment_name":  { "type": "string" },
+        "notes":                   { "type": ["string", "null"] },
+        "config_version":          { "type": "integer" }
+      }
+    },
+    "git_sha": {
+      "type": ["string", "null"],
+      "description": "HEAD commit SHA at run time. Null when run outside a git repo."
+    },
+    "started_at": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp when training began."
+    },
+    "finished_at": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp when training (or failure) ended."
+    },
+    "wall_clock_sec": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total elapsed seconds from start to finish."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed"],
+      "description": "Terminal run state. Stage 4 skips 'failed' runs by default."
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Full traceback string when status='failed'; null on success."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Populated only when status='success'. Empty object on failure.",
+      "properties": {
+        "c_index_mean":    { "type": ["number", "null"] },
+        "c_index_std":     { "type": ["number", "null"] },
+        "c_index_folds":   { "type": "array", "items": { "type": ["number", "null"] } },
+        "final_loss_mean": { "type": ["number", "null"] },
+        "final_loss_folds":{ "type": "array", "items": { "type": ["number", "null"] } },
+        "loss_curves": {
+          "type": "object",
+          "description": "Keyed by fold_id string. Each value has 'train' and 'val' epoch-loss arrays.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["train", "val"],
+            "properties": {
+              "train": { "type": "array", "items": { "type": ["number", "null"] } },
+              "val":   { "type": "array", "items": { "type": ["number", "null"] } }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "description": "Runtime environment snapshot for reproducibility debugging.",
+      "required": ["python", "hostname", "platform", "torch", "cuda"],
+      "properties": {
+        "python":   { "type": "string" },
+        "hostname": { "type": "string" },
+        "platform": { "type": "string" },
+        "torch":    { "type": ["string", "null"] },
+        "cuda":     { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form notes from ExperimentConfig.notes."
+    }
+  }
+}
