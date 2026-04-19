@@ -2,18 +2,21 @@
 #   pre-commit install
 #   pre-commit run --all-files  # one-off full check
 #
-# Keeps commits clean without CI round-trips. The three hooks mirror what
-# CI runs, so a green local commit should be a green remote build.
+# Keeps commits clean without CI round-trips. The hooks mirror what CI
+# runs, so a green local commit should be a green remote build.
+#
+# Hook order matters: format → lint (isort via ruff -I) → typecheck → test.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.8
     hooks:
-      # Ruff format — replaces black. Runs first so lint sees already-
+      # Ruff format — replaces Black. Runs first so lint sees already-
       # formatted code.
       - id: ruff-format
         args: [--config=stage3_experiments/pyproject.toml]
         files: ^stage3_experiments/
-      # Ruff lint — covers pyflakes, pycodestyle, isort, bugbear, etc.
+      # Ruff lint — covers pyflakes, pycodestyle, isort (I rules),
+      # bugbear, and more. --fix rewrites auto-fixable violations in place.
       - id: ruff
         args: [--fix, --config=stage3_experiments/pyproject.toml]
         files: ^stage3_experiments/
@@ -34,3 +37,24 @@ repos:
         args:
           - --config-file=stage3_experiments/pyproject.toml
         files: ^stage3_experiments/src/
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        # Uses the active environment (conda activate pathogems) so torch,
+        # scikit-survival, and the editable install are all available.
+        # -x stops on first failure; --tb=short keeps output readable.
+        # Slow end-to-end tests (marked `slow`) are excluded so the hook
+        # stays fast enough for interactive use.
+        language: system
+        entry: pytest
+        args:
+          - stage3_experiments/tests
+          - -x
+          - -q
+          - --tb=short
+          - -m
+          - "not slow"
+        pass_filenames: false
+        always_run: true
