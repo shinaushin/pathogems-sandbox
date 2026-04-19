@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 # `Iterable[nn.Parameter]` matches what `model.parameters()` returns. We
 # materialize to a list inside the factory because some torch optimizers
 # iterate the param group twice on construction.
-OptimizerFactory = Callable[[Iterable[nn.Parameter], ExperimentConfig], optim.Optimizer]
+OptimizerFactory = Callable[[Iterable[nn.Parameter], "ExperimentConfig"], optim.Optimizer]
 OPTIMIZER_REGISTRY: Registry[OptimizerFactory] = Registry("optimizer")
 
 

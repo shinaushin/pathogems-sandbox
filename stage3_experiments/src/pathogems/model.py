@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # avoid a runtime import cycle (config has no torch deps anyw
 # config so each model can pick out the knobs it cares about. Keeping the
 # factory signature uniform lets `train.py` call `MODEL_REGISTRY.get(name)`
 # and forget about which specific model it's constructing.
-ModelFactory = Callable[[int, ExperimentConfig], nn.Module]
+ModelFactory = Callable[[int, "ExperimentConfig"], nn.Module]
 MODEL_REGISTRY: Registry[ModelFactory] = Registry("model")
 
 
