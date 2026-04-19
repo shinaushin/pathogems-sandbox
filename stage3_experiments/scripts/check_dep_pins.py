@@ -157,8 +157,10 @@ def main() -> int:
     if checked:
         print(f"OK — {len(checked)} overlapping pins are consistent: {', '.join(checked)}")
     else:
-        print("OK — no overlapping packages to check (pyproject.toml and environment.yml "
-              "pin disjoint sets).")
+        print(
+            "OK — no overlapping packages to check (pyproject.toml and environment.yml "
+            "pin disjoint sets)."
+        )
     return 0
 
 
