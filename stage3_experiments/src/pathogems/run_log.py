@@ -62,7 +62,7 @@ def _jsonable(x: Any) -> Any:
     """
     if isinstance(x, float):
         return None if math.isnan(x) else x
-    if isinstance(x, (list, tuple)):
+    if isinstance(x, list | tuple):
         return [_jsonable(v) for v in x]
     if isinstance(x, dict):
         return {k: _jsonable(v) for k, v in x.items()}

@@ -24,6 +24,6 @@ __version__ = "0.1.0"
 # a consumer that wants to list registered models via
 # `pathogems.model.MODEL_REGISTRY.names()` would get an empty registry
 # unless they first triggered the registration themselves.
-from . import loss as loss  # noqa: F401
-from . import model as model  # noqa: F401
-from . import optimizers as optimizers  # noqa: F401
+from . import loss as loss
+from . import model as model
+from . import optimizers as optimizers

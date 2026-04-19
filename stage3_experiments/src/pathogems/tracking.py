@@ -62,7 +62,7 @@ class _NullTracker:
     def log_metric(self, name: str, value: float, step: int | None = None) -> None:
         pass
 
-    def log_cv_result(self, result: "CVResult") -> None:
+    def log_cv_result(self, result: CVResult) -> None:
         pass
 
     def log_artifact(self, path: Path) -> None:
@@ -91,7 +91,7 @@ class _MLflowTracker:
             return
         self._ml.log_metric(name, float(value), step=step)
 
-    def log_cv_result(self, result: "CVResult") -> None:
+    def log_cv_result(self, result: CVResult) -> None:
         """Log aggregate + per-fold metrics. Per-fold metrics use `step`
         so MLflow displays them as a small per-fold curve in the UI.
 
@@ -117,7 +117,7 @@ class _MLflowTracker:
 
 
 @contextmanager
-def track_run(config: "ExperimentConfig") -> Iterator[_NullTracker | _MLflowTracker]:
+def track_run(config: ExperimentConfig) -> Iterator[_NullTracker | _MLflowTracker]:
     """Context manager that yields a tracker matching the config.
 
     If `enable_mlflow` is False, yields a `_NullTracker` (all no-ops).

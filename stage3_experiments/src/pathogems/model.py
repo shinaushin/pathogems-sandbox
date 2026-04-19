@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # avoid a runtime import cycle (config has no torch deps anyw
 # config so each model can pick out the knobs it cares about. Keeping the
 # factory signature uniform lets `train.py` call `MODEL_REGISTRY.get(name)`
 # and forget about which specific model it's constructing.
-ModelFactory = Callable[[int, "ExperimentConfig"], nn.Module]
+ModelFactory = Callable[[int, ExperimentConfig], nn.Module]
 MODEL_REGISTRY: Registry[ModelFactory] = Registry("model")
 
 
@@ -125,7 +125,7 @@ class OmicsMLP(nn.Module):
 
 
 @MODEL_REGISTRY.register("omics_mlp")
-def _build_omics_mlp(in_features: int, config: "ExperimentConfig") -> nn.Module:
+def _build_omics_mlp(in_features: int, config: ExperimentConfig) -> nn.Module:
     """Factory: translate the generic `ExperimentConfig` into `OmicsMLPConfig`.
 
     Living next to `OmicsMLP` (instead of in `train.py`) means the
@@ -186,7 +186,7 @@ class LinearCox(nn.Module):
 
 
 @MODEL_REGISTRY.register("linear_cox")
-def _build_linear_cox(in_features: int, config: "ExperimentConfig") -> nn.Module:
+def _build_linear_cox(in_features: int, config: ExperimentConfig) -> nn.Module:
     """LinearCox has no hyperparameters beyond `in_features`.
 
     ``hidden_dims``, ``dropout``, and ``use_batchnorm`` are ignored. We

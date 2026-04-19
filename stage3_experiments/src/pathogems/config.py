@@ -133,7 +133,7 @@ class ExperimentConfig:
         path.write_text(json.dumps(self.to_dict(), indent=2) + "\n")
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ExperimentConfig":
+    def from_dict(cls, d: dict[str, Any]) -> ExperimentConfig:
         d = dict(d)
         # Coerce JSON lists back to tuples for fields that expect them.
         if "modalities" in d and isinstance(d["modalities"], list):
@@ -156,5 +156,5 @@ class ExperimentConfig:
         return cls(**d)
 
     @classmethod
-    def from_json(cls, path: Path) -> "ExperimentConfig":
+    def from_json(cls, path: Path) -> ExperimentConfig:
         return cls.from_dict(json.loads(path.read_text()))

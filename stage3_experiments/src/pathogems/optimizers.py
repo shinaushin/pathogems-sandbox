@@ -32,17 +32,17 @@ if TYPE_CHECKING:
 # `Iterable[nn.Parameter]` matches what `model.parameters()` returns. We
 # materialize to a list inside the factory because some torch optimizers
 # iterate the param group twice on construction.
-OptimizerFactory = Callable[[Iterable[nn.Parameter], "ExperimentConfig"], optim.Optimizer]
+OptimizerFactory = Callable[[Iterable[nn.Parameter], ExperimentConfig], optim.Optimizer]
 OPTIMIZER_REGISTRY: Registry[OptimizerFactory] = Registry("optimizer")
 
 
 @OPTIMIZER_REGISTRY.register("adam")
-def _build_adam(params: Iterable[nn.Parameter], config: "ExperimentConfig") -> optim.Optimizer:
+def _build_adam(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
     return optim.Adam(list(params), lr=config.lr, weight_decay=config.weight_decay)
 
 
 @OPTIMIZER_REGISTRY.register("sgd")
-def _build_sgd(params: Iterable[nn.Parameter], config: "ExperimentConfig") -> optim.Optimizer:
+def _build_sgd(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
     # Momentum = 0.9 is the textbook default for SGD on non-convex NN losses;
     # it's fixed here (rather than a config field) so switching adam→sgd is
     # a true one-field change in the experiment config.

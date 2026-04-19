@@ -19,7 +19,7 @@ import copy
 import logging
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -128,7 +128,7 @@ def train_one_fold(
     started = time.perf_counter()
 
     torch.manual_seed(config.seed + fold_id)  # fold-unique but deterministic
-    np.random.seed(config.seed + fold_id)  # noqa: NPY002 — torch-style global seed
+    np.random.seed(config.seed + fold_id)  # torch-style global seed
 
     # Inner val split for early stopping.
     inner_train_idx, inner_val_idx = _inner_split(
@@ -148,8 +148,6 @@ def train_one_fold(
     t_va = _to_t(fold.time_train[inner_val_idx])
     e_va = _to_t(fold.event_train[inner_val_idx])
     x_te = _to_t(fold.x_test)
-    t_te = _to_t(fold.time_test)
-    e_te = _to_t(fold.event_test)
 
     # NB: Cox PH is a rank-based loss; we want each mini-batch to contain
     # enough events that the risk set is meaningful. `batch_size=None`

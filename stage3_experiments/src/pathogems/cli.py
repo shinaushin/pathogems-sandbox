@@ -18,9 +18,9 @@ import traceback
 from datetime import UTC, datetime
 from pathlib import Path
 
-import torch
-
 import logging
+
+import torch
 
 from .config import ExperimentConfig
 from .data import assemble_cohort
@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        except BaseException as exc:  # noqa: BLE001 - we want to catch everything, log, re-raise
+        except BaseException as exc:  # we want to catch everything, log, re-raise
             # Any error past this point must produce a run log the schema
             # recognizes (status="failed"), otherwise Stage 4 will treat
             # the run as if it never happened.

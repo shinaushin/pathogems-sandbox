@@ -91,7 +91,10 @@ class TestLinearCox:
 
         # Subtract the bias to reduce to a strictly linear map.
         bias = model.linear.bias.detach()
-        f = lambda x: model(x) - bias
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            return model(x) - bias
+
         torch.testing.assert_close(
             f(a * x1 + b * x2),
             a * f(x1) + b * f(x2),
