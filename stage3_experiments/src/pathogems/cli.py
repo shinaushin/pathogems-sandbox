@@ -13,12 +13,11 @@ not have a run name yet at that point, so there is nothing to log.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
-
-import logging
 
 import torch
 
