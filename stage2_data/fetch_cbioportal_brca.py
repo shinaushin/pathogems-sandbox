@@ -43,6 +43,7 @@ import json
 import sys
 import tarfile
 import urllib.request
+import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,7 +52,12 @@ from pathlib import Path
 # The URL pattern is https://cbioportal-datahub.s3.amazonaws.com/<study>.tar.gz
 # and is referenced from the study's page on cbioportal.org.
 STUDY_ID = "brca_tcga_pan_can_atlas_2018"
-BUNDLE_URL = f"https://cbioportal-datahub.s3.amazonaws.com/{STUDY_ID}.tar.gz"
+# cBioPortal previously distributed study bundles from a public S3 bucket
+# (cbioportal-datahub.s3.amazonaws.com). That bucket access has been restricted
+# and now returns HTTP 403. The canonical download is now served through the
+# cBioPortal website's own endpoint (the same URL used by the "Download" button
+# on https://www.cbioportal.org/datasets).
+BUNDLE_URL = f"https://cbioportal.org/study/downloadStudy?id={STUDY_ID}"
 
 # Files inside the bundle we want to surface. cBioPortal's layout is stable
 # across PanCancer Atlas studies: RSEM expression + patient/sample clinical.
@@ -84,7 +90,8 @@ def _download_to_memory(url: str) -> tuple[bytes, str]:
     """
     hasher = hashlib.sha256()
     buf = io.BytesIO()
-    with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310 - trusted domain
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 - trusted domain
         while True:
             chunk = resp.read(CHUNK)
             if not chunk:
@@ -94,36 +101,53 @@ def _download_to_memory(url: str) -> tuple[bytes, str]:
     return buf.getvalue(), hasher.hexdigest()
 
 
-def _extract_selected(tgz_bytes: bytes, names: tuple[str, ...], dest: Path) -> dict[str, Path]:
-    """Extract the named files from an in-memory tar.gz into `dest`.
+def _extract_selected(bundle_bytes: bytes, names: tuple[str, ...], dest: Path) -> dict[str, Path]:
+    """Extract the named files from an in-memory bundle (zip or tar.gz) into `dest`.
 
     cBioPortal bundles are shaped like `<study>/<file>`; we drop the top
     directory so files land directly in `dest`. Missing members raise so
     the caller sees a clear error rather than a silent half-extraction.
+
+    Handles both .zip (served by cbioportal.org/study/downloadStudy) and
+    .tar.gz (old S3 distribution) automatically by inspecting the magic bytes.
     """
     dest.mkdir(parents=True, exist_ok=True)
     extracted: dict[str, Path] = {}
+    wanted = set(names)
 
-    with tarfile.open(fileobj=io.BytesIO(tgz_bytes), mode="r:gz") as tar:
-        wanted = set(names)
-        for member in tar.getmembers():
-            # Member names look like "brca_tcga_pan_can_atlas_2018/data_*.txt"
-            leaf = Path(member.name).name
-            if leaf not in wanted:
-                continue
-            fobj = tar.extractfile(member)
-            if fobj is None:  # directories, symlinks — skip defensively
-                continue
-            out_path = dest / leaf
-            with out_path.open("wb") as out:
-                out.write(fobj.read())
-            extracted[leaf] = out_path
+    # Detect format from magic bytes: zip starts with PK\x03\x04, gzip with \x1f\x8b.
+    is_zip = bundle_bytes[:2] == b"PK"
 
-    missing = set(names) - extracted.keys()
+    if is_zip:
+        with zipfile.ZipFile(io.BytesIO(bundle_bytes)) as zf:
+            for member in zf.infolist():
+                leaf = Path(member.filename).name
+                if leaf not in wanted:
+                    continue
+                out_path = dest / leaf
+                with out_path.open("wb") as out:
+                    out.write(zf.read(member))
+                extracted[leaf] = out_path
+    else:
+        with tarfile.open(fileobj=io.BytesIO(bundle_bytes), mode="r:gz") as tar:
+            for member in tar.getmembers():
+                leaf = Path(member.name).name
+                if leaf not in wanted:
+                    continue
+                fobj = tar.extractfile(member)
+                if fobj is None:  # directories, symlinks — skip defensively
+                    continue
+                out_path = dest / leaf
+                with out_path.open("wb") as out:
+                    out.write(fobj.read())
+                extracted[leaf] = out_path
+
+    missing = wanted - extracted.keys()
     if missing:
         raise RuntimeError(
             f"Expected files not found in cBioPortal bundle: {sorted(missing)}. "
-            f"The study layout may have changed; re-check {BUNDLE_URL}."
+            f"The study layout may have changed. "
+            f"Try downloading manually from https://www.cbioportal.org/datasets"
         )
     return extracted
 
