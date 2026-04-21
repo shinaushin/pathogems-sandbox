@@ -40,9 +40,21 @@ full harness can recover a synthetic Cox signal end-to-end.
 python stage2_data/fetch_cbioportal_brca.py
 ```
 
-This downloads ~100 MB from cBioPortal and writes to
-`stage2_data/raw/brca_tcga_pan_can_atlas_2018/`. Idempotent — safe to
-re-run.
+This downloads ~100 MB from cBioPortal's download endpoint and writes to
+`stage2_data/raw/brca_tcga_pan_can_atlas_2018/`. Idempotent — safe to re-run.
+
+**If the script fails with HTTP 403 or a connection error**, download manually:
+
+1. Go to <https://www.cbioportal.org/datasets>
+2. Search for **brca_tcga_pan_can_atlas_2018** and click the download icon
+3. Unzip the archive and copy these three files into
+   `stage2_data/raw/brca_tcga_pan_can_atlas_2018/`:
+   - `data_mrna_seq_v2_rsem.txt`
+   - `data_clinical_patient.txt`
+   - `data_clinical_sample.txt`
+
+The harness picks them up from there; the script is not required if the
+files are already present.
 
 ## 5. Run the baseline experiment
 

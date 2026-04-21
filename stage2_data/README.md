@@ -16,6 +16,11 @@ Two scripts live here, by design:
 python stage2_data/fetch_cbioportal_brca.py
 ```
 
+> **Note:** cBioPortal previously distributed study bundles from a public S3 bucket
+> (`cbioportal-datahub.s3.amazonaws.com`). That bucket now returns HTTP 403.
+> The script has been updated to use cBioPortal's own download endpoint instead.
+> If the script still fails, download the study manually — see below.
+
 After the script completes you should see:
 
 ```
@@ -29,6 +34,16 @@ stage2_data/raw/brca_tcga_pan_can_atlas_2018/
 `stage2_data/raw/` is gitignored; the script is idempotent, so recovering
 from a lost volume is `python stage2_data/fetch_cbioportal_brca.py` and
 nothing else.
+
+**Manual download fallback** (if the script fails):
+
+1. Visit <https://www.cbioportal.org/datasets>
+2. Search for **brca_tcga_pan_can_atlas_2018** and click the download icon
+3. Unzip and place the three files below into
+   `stage2_data/raw/brca_tcga_pan_can_atlas_2018/`:
+   - `data_mrna_seq_v2_rsem.txt`
+   - `data_clinical_patient.txt`
+   - `data_clinical_sample.txt`
 
 ## Clinical fields we rely on
 
