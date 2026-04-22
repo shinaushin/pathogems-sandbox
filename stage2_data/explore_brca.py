@@ -131,6 +131,80 @@ def _add_explanation(fig: plt.Figure, paragraphs: list[str], wrap_width: int = 1
 
 
 # ---------------------------------------------------------------------------
+# Structured text-page builder
+# ---------------------------------------------------------------------------
+
+def _text_page(
+    pdf: PdfPages,
+    sections: list[tuple[str, list[str]]],
+    title: str,
+    subtitle: str = "",
+) -> None:
+    """Render a formatted text-only page with titled sections and body paragraphs.
+
+    Args:
+        pdf: Open PdfPages handle.
+        sections: List of (section_heading, [paragraph, ...]) tuples.
+        title: Large page title at the top.
+        subtitle: Optional smaller line under the title.
+    """
+    fig, ax = plt.subplots(figsize=(11, 8.5))
+    ax.axis("off")
+
+    TW = 105          # wrap width (characters)
+    x_margin = 0.04
+    y = 0.96          # start position (figure fraction, top of page)
+
+    # ---- Page title ----
+    ax.text(x_margin, y, title,
+            transform=ax.transAxes,
+            fontsize=15, fontweight="bold", color="#1a1a2e", va="top")
+    y -= 0.055
+    if subtitle:
+        ax.text(x_margin, y, subtitle,
+                transform=ax.transAxes,
+                fontsize=9, color="#555", va="top", style="italic")
+        y -= 0.035
+
+    # Thin horizontal rule under the title block.
+    ax.axhline(y, xmin=x_margin, xmax=0.96, color="#AAAAAA", linewidth=0.6,
+               transform=ax.transAxes)
+    y -= 0.025
+
+    SECTION_FONT = 9.5
+    BODY_FONT = 8.5
+    SECTION_GAP = 0.022
+    PARA_GAP = 0.012
+    LINE_H = 0.018       # height of one body-text line
+
+    for heading, paragraphs in sections:
+        if y < 0.04:
+            break
+
+        # Section heading.
+        ax.text(x_margin, y, heading,
+                transform=ax.transAxes,
+                fontsize=SECTION_FONT, fontweight="bold", color="#16213e", va="top")
+        y -= SECTION_GAP
+
+        for para in paragraphs:
+            wrapped_lines = textwrap.wrap(para, width=TW)
+            for line in wrapped_lines:
+                if y < 0.04:
+                    break
+                ax.text(x_margin + 0.015, y, line,
+                        transform=ax.transAxes,
+                        fontsize=BODY_FONT, color="#333333", va="top")
+                y -= LINE_H
+            y -= PARA_GAP
+
+        y -= 0.010   # extra gap between sections
+
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
 # Data loading helpers
 # ---------------------------------------------------------------------------
 def _load_clinical(path: Path) -> pd.DataFrame:
@@ -186,6 +260,233 @@ def _hist(ax: plt.Axes, values: pd.Series, title: str, xlabel: str,
 # ---------------------------------------------------------------------------
 # Page builders
 # ---------------------------------------------------------------------------
+
+def page_project_overview(pdf: PdfPages) -> None:
+    """Text page 1: problem statement, ranking rationale, WSI roadmap."""
+    _text_page(
+        pdf,
+        title="PathoGems — Project Overview",
+        subtitle="Predicting breast cancer patient survival from molecular tumour data",
+        sections=[
+            (
+                "The Problem",
+                [
+                    "Breast cancer is the most commonly diagnosed cancer in women worldwide. After a patient "
+                    "is diagnosed and treated, clinicians face a critical question: how aggressive is this "
+                    "particular tumour, and how much time does this patient have? The answer determines "
+                    "whether to recommend intensive chemotherapy (with serious side effects) or lighter "
+                    "hormone-blocking therapy — getting it wrong means either over-treating patients who "
+                    "didn't need it, or under-treating patients whose cancer will return.",
+
+                    "Current clinical tools (AJCC staging, Oncotype DX gene panels) give partial answers "
+                    "but were derived from relatively small datasets and capture only a fraction of the "
+                    "molecular complexity of a tumour. PathoGems asks: can a machine-learning model trained "
+                    "on large-scale molecular data — starting with RNA-seq gene expression from ~1,000 "
+                    "TCGA-BRCA patients — produce better, more individualised survival predictions?",
+                ],
+            ),
+            (
+                "Why Survival Ranking, Not Classification or Regression",
+                [
+                    "A natural first instinct might be to frame this as classification ('will this patient "
+                    "die within 5 years: yes or no?') or regression ('predict exact survival time in "
+                    "months'). Both are problematic for survival data.",
+
+                    "Classification throws away information. Whether a patient died at month 6 or month 59 "
+                    "of a 60-month study both count as the same 'yes' label — yet they are very different "
+                    "clinical situations. A model trained this way cannot distinguish rapid progressors "
+                    "from slow ones.",
+
+                    "Regression cannot handle censoring. About 80% of TCGA-BRCA patients were still alive "
+                    "when the study ended. We know they survived at least X months, but not how long they "
+                    "will ultimately live. A standard regression model would either have to drop these "
+                    "patients (losing 80% of the data) or treat their last follow-up time as their true "
+                    "survival time (which would severely underestimate survival).",
+
+                    "Ranking survives both problems. Instead of predicting an absolute number, we ask "
+                    "the model to assign a relative risk score to each patient — higher score means higher "
+                    "predicted hazard of death. We evaluate quality using Harrell's C-index: out of all "
+                    "patient pairs where one definitely died before the other, how often does the model "
+                    "rank the deceased patient as higher risk? A C-index of 0.5 is random; 1.0 is "
+                    "perfect. Crucially, censored patients can still contribute to this comparison "
+                    "whenever the other patient in the pair had an observed death.",
+                ],
+            ),
+            (
+                "Why We Are Not Using Pathology Images (WSIs) Yet",
+                [
+                    "Whole Slide Images (WSIs) are high-resolution scans of tumour tissue slides taken "
+                    "at surgery — essentially a photograph of the cancer at 20× or 40× magnification, "
+                    "capturing individual cell shapes, tissue architecture, and spatial patterns that "
+                    "a pathologist normally reads by eye. TCGA-BRCA has WSIs for most patients, hosted "
+                    "separately by the NCI's Genomic Data Commons (GDC).",
+
+                    "We are deferring WSIs for two reasons. First, practical: WSI files are very large "
+                    "(often 1–5 GB each), require GPU-accelerated deep-learning pipelines to process, "
+                    "and need substantial infrastructure to download and store. Building that pipeline "
+                    "before we have a working omics baseline would mean debugging two complex systems "
+                    "at once, making it hard to isolate problems.",
+
+                    "Second, scientific: establishing an omics-only baseline first gives us a clear "
+                    "performance benchmark to beat. If our RNA-seq model achieves a C-index of 0.65, "
+                    "we can ask a precise question when we add WSIs: 'Does adding image features push "
+                    "this above 0.65?' Without the baseline, we wouldn't know whether any gain came "
+                    "from the images or just from model improvements.",
+                ],
+            ),
+            (
+                "How Pathology Images Will Help When We Add Them",
+                [
+                    "Gene expression tells us which biological programmes are active inside the cells. "
+                    "Pathology images tell us something different: what the tissue looks like — how "
+                    "densely packed the tumour cells are, whether they are invading surrounding tissue, "
+                    "how much immune cell infiltration exists. These two views are partially redundant "
+                    "(highly proliferating tumours tend to look abnormal AND have high expression of "
+                    "growth genes) but also partially complementary.",
+
+                    "Specifically, images can capture spatial heterogeneity — some regions of a tumour "
+                    "may be far more aggressive than others, and this regional variation is invisible "
+                    "to bulk RNA-seq (which averages across the whole sample). Pathologists already "
+                    "use slide morphology to assign tumour grade; a deep-learning model could learn "
+                    "far finer-grained prognostic features from the same images.",
+
+                    "The planned approach is to extract patch-level features from the WSIs using a "
+                    "pre-trained pathology vision encoder, aggregate them per patient, and concatenate "
+                    "the resulting embedding with the RNA-seq features before the final Cox risk head. "
+                    "This multimodal fusion is the long-term goal of the PathoGems project.",
+                ],
+            ),
+        ],
+    )
+    print("[explore] ✓ Page 1: project overview")
+
+
+def page_design_choices(pdf: PdfPages) -> None:
+    """Text page 2: loss function and MLP architecture justifications."""
+    _text_page(
+        pdf,
+        title="Model Design Choices",
+        subtitle="Why we made the architectural decisions we did for the baseline experiment",
+        sections=[
+            (
+                "Loss Function Options",
+                [
+                    "The loss function is what the model is trained to minimise. In survival analysis "
+                    "several options exist, each with different assumptions and trade-offs.",
+
+                    "Cox Partial Likelihood (our choice): The Cox proportional-hazards model assumes "
+                    "that every patient's risk of death at any moment is a fixed multiple of a shared "
+                    "baseline hazard — a patient twice as risky is always twice as risky, regardless "
+                    "of time. The loss derived from this assumption — the negative log partial "
+                    "likelihood — only involves the ordering of risk scores among patients who are "
+                    "'at risk' at each observed death time. This means it never requires predicting "
+                    "absolute survival time, only relative ordering.",
+
+                    "Ranking losses (e.g. pairwise log-rank): Directly optimise the C-index or an "
+                    "approximation of it. These are conceptually very clean — optimise exactly what "
+                    "you evaluate — but tend to have noisy gradients because each gradient step "
+                    "depends on randomly sampled pairs of patients, not the full dataset.",
+
+                    "DeepHit: A neural network approach that abandons the proportional-hazards "
+                    "assumption and instead predicts the full probability distribution over discrete "
+                    "time intervals. More flexible, but requires many more parameters, is harder to "
+                    "train stably, and makes the outputs harder to interpret clinically.",
+
+                    "Accelerated Failure Time (AFT) models: Predict log(survival time) directly as "
+                    "a regression target, with a special likelihood that handles censoring. Intuitive "
+                    "output, but the log-time regression target is sensitive to model mis-specification.",
+                ],
+            ),
+            (
+                "Why We Chose Cox Partial Likelihood to Start",
+                [
+                    "The Cox loss has four practical advantages for a baseline. First, it is the "
+                    "dominant standard in clinical survival literature, so our C-index results are "
+                    "directly comparable to decades of published benchmarks on TCGA-BRCA.",
+
+                    "Second, it does not require us to predict absolute survival time — only to rank "
+                    "patients correctly. This is a strictly easier task that allows the model to "
+                    "focus its capacity on learning which molecular features are prognostically "
+                    "discriminative, rather than also trying to learn the shape of the baseline "
+                    "hazard function.",
+
+                    "Third, the Breslow approximation (our implementation) reduces the O(N²) "
+                    "all-pairs computation to O(N log N) using a sorted cumulative log-sum-exp "
+                    "trick, making full-batch training on ~900 patients fast even on CPU.",
+
+                    "Fourth, the Cox loss is well-behaved numerically and easy to unit-test: "
+                    "for small examples, the closed-form partial likelihood can be computed by "
+                    "hand and compared against our implementation — which is exactly what our "
+                    "test suite does.",
+                ],
+            ),
+            (
+                "Why ReLU Activations",
+                [
+                    "After each linear layer, we apply a Rectified Linear Unit (ReLU): output = "
+                    "max(0, input). Negative values are set to zero; positive values pass through "
+                    "unchanged. ReLU has three advantages over the historically popular sigmoid and "
+                    "tanh activations.",
+
+                    "It does not saturate for large positive inputs. Sigmoid and tanh both squash "
+                    "large values toward a ceiling (1.0), making their gradients near-zero and "
+                    "causing the 'vanishing gradient' problem that makes deep networks hard to train. "
+                    "ReLU gradients are either exactly 0 (for negative pre-activations) or exactly "
+                    "1 (for positive ones), so gradients flow cleanly to early layers.",
+
+                    "It is computationally trivial — a comparison and a threshold — which matters "
+                    "when training hundreds of experiments. It also tends to produce sparse "
+                    "activations (many neurons outputting exactly 0), which acts as an implicit "
+                    "regulariser and can make the learned representations more interpretable.",
+                ],
+            ),
+            (
+                "Why Batch Normalisation",
+                [
+                    "Batch Normalisation (BatchNorm) is placed after each linear layer and before "
+                    "the ReLU. It re-centres and re-scales the activations within each mini-batch "
+                    "so they have approximately zero mean and unit variance, then applies learned "
+                    "scale and shift parameters.",
+
+                    "Even though we z-score the input genes before training, as the signal passes "
+                    "through successive linear layers the distribution of activations shifts and "
+                    "widens — a phenomenon called 'internal covariate shift'. Without BatchNorm, "
+                    "deeper layers are constantly chasing a moving target, slowing convergence. "
+                    "BatchNorm stabilises each layer's input distribution so each layer can learn "
+                    "more independently.",
+
+                    "On small cohorts like TCGA-BRCA (~900 training patients), BatchNorm also "
+                    "provides mild regularisation: the per-batch statistics introduce small "
+                    "stochastic perturbations that reduce overfitting, similar in spirit to dropout "
+                    "but at the activation distribution level.",
+                ],
+            ),
+            (
+                "Why Dropout",
+                [
+                    "Dropout randomly sets a fraction of neuron outputs to zero during each "
+                    "training step (we use a rate of 0.3, meaning 30% of activations are zeroed). "
+                    "At inference time, all neurons are active and their outputs are scaled "
+                    "accordingly.",
+
+                    "The motivation is to prevent co-adaptation: if neurons can always rely on "
+                    "their neighbours being present, they learn to correct each other's errors "
+                    "rather than extract independent useful features. Dropout forces each neuron "
+                    "to be useful on its own, producing a more robust representation.",
+
+                    "With only ~900 training patients and 500 input genes, our model has enough "
+                    "parameters to overfit — memorising the training fold rather than generalising "
+                    "to new patients. Dropout is one of the most effective and simplest tools for "
+                    "preventing this. The 0.3 rate comes from the DeepSurv paper (Katzman et al. "
+                    "2018), which used the same architecture on several TCGA cohorts and is the "
+                    "closest published baseline to our own setup.",
+                ],
+            ),
+        ],
+    )
+    print("[explore] ✓ Page 2: design choices")
+
+
 def page_inventory(pdf: PdfPages, data_dir: Path) -> None:
     """Text page: dataset file inventory with row counts."""
     fig, ax = plt.subplots(figsize=(11, 8.5))
@@ -746,6 +1047,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[explore] Writing report to {out_pdf} …\n")
 
     with PdfPages(out_pdf) as pdf:
+        page_project_overview(pdf)
+        page_design_choices(pdf)
         page_inventory(pdf, data_dir)
         page_demographics(pdf, clin)
         page_cancer_characteristics(pdf, clin, samp)
