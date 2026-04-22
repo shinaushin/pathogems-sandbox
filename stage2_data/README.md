@@ -35,11 +35,12 @@ stage2_data/raw/brca_tcga_pan_can_atlas_2018/
 from a lost volume is `python stage2_data/fetch_cbioportal_brca.py` and
 nothing else.
 
-**Manual download fallback** (if the script fails):
+**Manual download fallback** (if all URLs fail):
 
-1. Visit <https://www.cbioportal.org/datasets>
-2. Search for **brca_tcga_pan_can_atlas_2018** and click the download icon
-3. Unzip and place the three files below into
+1. Go directly to the study page:
+   <https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018>
+2. Click the **Download** button in the top-right corner of the page
+3. Unzip and place these three files into
    `stage2_data/raw/brca_tcga_pan_can_atlas_2018/`:
    - `data_mrna_seq_v2_rsem.txt`
    - `data_clinical_patient.txt`

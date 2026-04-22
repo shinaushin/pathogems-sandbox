@@ -52,12 +52,17 @@ from pathlib import Path
 # The URL pattern is https://cbioportal-datahub.s3.amazonaws.com/<study>.tar.gz
 # and is referenced from the study's page on cbioportal.org.
 STUDY_ID = "brca_tcga_pan_can_atlas_2018"
-# cBioPortal previously distributed study bundles from a public S3 bucket
-# (cbioportal-datahub.s3.amazonaws.com). That bucket access has been restricted
-# and now returns HTTP 403. The canonical download is now served through the
-# cBioPortal website's own endpoint (the same URL used by the "Download" button
-# on https://www.cbioportal.org/datasets).
-BUNDLE_URL = f"https://cbioportal.org/study/downloadStudy?id={STUDY_ID}"
+
+# cBioPortal's download infrastructure has changed over time. We try a list of
+# known URLs in order, falling back to the next if one fails with an HTTP error:
+#   1. cbioportal.org website download endpoint (current as of 2025)
+#   2. download.cbioportal.org legacy mirror (may still be live)
+#   3. S3 bucket (public access was restricted ~2024/2025, kept as last resort)
+BUNDLE_URLS = [
+    f"https://cbioportal.org/study/downloadStudy?id={STUDY_ID}",
+    f"http://download.cbioportal.org/{STUDY_ID}.tar.gz",
+    f"https://cbioportal-datahub.s3.amazonaws.com/{STUDY_ID}.tar.gz",
+]
 
 # Files inside the bundle we want to surface. cBioPortal's layout is stable
 # across PanCancer Atlas studies: RSEM expression + patient/sample clinical.
@@ -81,24 +86,38 @@ class FetchReport:
     file_paths: dict[str, Path]
 
 
-def _download_to_memory(url: str) -> tuple[bytes, str]:
-    """Stream `url` into memory and return (bytes, sha256_hex).
+def _download_to_memory(urls: list[str]) -> tuple[bytes, str, str]:
+    """Try each URL in order; return (bytes, sha256_hex, successful_url).
 
-    The bundle is small enough (~100 MB) that streaming to memory is simpler
-    than a two-pass disk-then-hash. If bundles ever exceed ~1 GB we will
-    revisit this (by streaming to a temp file instead).
+    Falls back to the next URL on any urllib error (HTTP error, connection
+    refused, timeout). Raises RuntimeError if all URLs fail.
     """
-    hasher = hashlib.sha256()
-    buf = io.BytesIO()
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 - trusted domain
-        while True:
-            chunk = resp.read(CHUNK)
-            if not chunk:
-                break
-            hasher.update(chunk)
-            buf.write(chunk)
-    return buf.getvalue(), hasher.hexdigest()
+    last_exc: Exception | None = None
+    for url in urls:
+        try:
+            print(f"[stage2-lite] Trying {url} ...")
+            hasher = hashlib.sha256()
+            buf = io.BytesIO()
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310
+                while True:
+                    chunk = resp.read(CHUNK)
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+                    buf.write(chunk)
+            return buf.getvalue(), hasher.hexdigest(), url
+        except Exception as exc:
+            print(f"[stage2-lite] {url} failed: {exc}")
+            last_exc = exc
+
+    raise RuntimeError(
+        "All download URLs failed. Download the study bundle manually:\n"
+        "  1. Visit https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018\n"
+        "  2. Click the download button (top-right of the study page)\n"
+        "  3. Unzip and place the three .txt files in "
+        "stage2_data/raw/brca_tcga_pan_can_atlas_2018/"
+    ) from last_exc
 
 
 def _extract_selected(bundle_bytes: bytes, names: tuple[str, ...], dest: Path) -> dict[str, Path]:
@@ -193,19 +212,18 @@ def fetch(out_root: Path = Path("stage2_data/raw"), *, force: bool = False) -> F
             file_paths={leaf: out_dir / rel for leaf, rel in manifest["files"].items()},
         )
 
-    print(f"[stage2-lite] Downloading {BUNDLE_URL} ...")
-    tgz_bytes, sha = _download_to_memory(BUNDLE_URL)
-    print(f"[stage2-lite] Downloaded {len(tgz_bytes) / 1e6:.1f} MB; sha256={sha[:12]}...")
+    bundle_bytes, sha, used_url = _download_to_memory(BUNDLE_URLS)
+    print(f"[stage2-lite] Downloaded {len(bundle_bytes) / 1e6:.1f} MB; sha256={sha[:12]}...")
 
     print(f"[stage2-lite] Extracting {len(FILES_OF_INTEREST)} files to {out_dir}")
-    files = _extract_selected(tgz_bytes, FILES_OF_INTEREST, out_dir)
+    files = _extract_selected(bundle_bytes, FILES_OF_INTEREST, out_dir)
 
-    _write_manifest(out_dir, files, BUNDLE_URL, sha)
+    _write_manifest(out_dir, files, used_url, sha)
     print(f"[stage2-lite] Wrote manifest to {manifest_path}")
     return FetchReport(
         study_id=STUDY_ID,
         out_dir=out_dir,
-        bytes_downloaded=len(tgz_bytes),
+        bytes_downloaded=len(bundle_bytes),
         sha256=sha,
         file_paths=files,
     )
