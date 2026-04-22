@@ -38,6 +38,9 @@ dependencies:
   # ---- HTTP / data fetching ----
   - requests>=2.31,<2.33
 
+  # ---- Visualisation ----
+  - matplotlib>=3.8,<4
+
   # ---- Dev tooling ----
   - pytest>=8,<9
   - pytest-cov>=5,<6
