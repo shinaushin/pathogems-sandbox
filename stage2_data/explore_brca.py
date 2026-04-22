@@ -9,6 +9,9 @@ Produces a multi-page PDF report at stage2_data/brca_eda.pdf covering:
   - RNA-seq expression overview (per-sample totals, top variable genes)
   - Somatic mutation landscape (top mutated genes, variant classes)
 
+Each page includes a plain-language explanation panel so that readers
+without a genomics background can follow along.
+
 Usage (from repo root, with the pathogems conda env active):
     python stage2_data/explore_brca.py [--data-dir PATH] [--out PATH]
 
@@ -20,8 +23,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+import textwrap
 from pathlib import Path
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -55,6 +60,75 @@ plt.rcParams.update({
     "axes.spines.right": False,
 })
 
+# ---------------------------------------------------------------------------
+# Explanation panel
+# ---------------------------------------------------------------------------
+_PANEL_HEIGHT_FRAC = 0.30   # fraction of figure height reserved for text
+_PANEL_BG = "#F7F7F2"
+_PANEL_EDGE = "#CCCCBB"
+_BULLET = "\u2022"          # •
+
+
+def _add_explanation(fig: plt.Figure, paragraphs: list[str], wrap_width: int = 115) -> None:
+    """Draw a lightly shaded explanation panel across the bottom of *fig*.
+
+    Call this after all axes have been added but before savefig. The
+    function adjusts the subplot layout to leave room, then renders each
+    string in *paragraphs* as a separate indented bullet point.
+
+    Args:
+        fig: The figure to annotate.
+        paragraphs: List of plain-text strings, one per bullet.
+        wrap_width: Target character width for text wrapping.
+    """
+    # Shrink the chart area to leave the bottom strip free.
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
+
+    # Background rectangle.
+    rect = mpatches.FancyBboxPatch(
+        (0.01, 0.01), 0.98, _PANEL_HEIGHT_FRAC - 0.02,
+        transform=fig.transFigure,
+        boxstyle="round,pad=0.005",
+        facecolor=_PANEL_BG, edgecolor=_PANEL_EDGE, linewidth=0.8,
+        zorder=0, clip_on=False,
+    )
+    fig.add_artist(rect)
+
+    # Header label.
+    fig.text(
+        0.025, _PANEL_HEIGHT_FRAC - 0.025,
+        "How to read this page",
+        transform=fig.transFigure,
+        fontsize=8, fontweight="bold", color="#444",
+        va="top", ha="left",
+    )
+
+    # Bullet points.
+    y_start = _PANEL_HEIGHT_FRAC - 0.055
+    line_height = 0.013
+    x_bullet = 0.025
+    x_text = 0.040
+    y = y_start
+
+    for para in paragraphs:
+        wrapped = textwrap.wrap(para, width=wrap_width)
+        if not wrapped:
+            y -= line_height * 0.5
+            continue
+        # First line gets the bullet.
+        fig.text(x_bullet, y, _BULLET, transform=fig.transFigure,
+                 fontsize=7.5, color="#666", va="top")
+        fig.text(x_text, y, wrapped[0], transform=fig.transFigure,
+                 fontsize=7.5, color="#333", va="top")
+        y -= line_height
+        for continuation in wrapped[1:]:
+            fig.text(x_text, y, continuation, transform=fig.transFigure,
+                     fontsize=7.5, color="#333", va="top")
+            y -= line_height
+        y -= line_height * 0.4   # small gap between bullets
+        if y < 0.015:
+            break
+
 
 # ---------------------------------------------------------------------------
 # Data loading helpers
@@ -70,15 +144,9 @@ def _parse_os_status(series: pd.Series) -> pd.Series:
 
 
 def _load_expression(path: Path) -> pd.DataFrame:
-    """Load RSEM matrix; drop Entrez column, use Hugo_Symbol as index.
-
-    Genes with a blank Hugo_Symbol are kept under their Entrez ID as a
-    string to avoid silent row loss.
-    """
+    """Load RSEM matrix; drop Entrez column, use Hugo_Symbol as index."""
     df = pd.read_csv(path, sep="\t", index_col=0, low_memory=False)
-    # Drop the Entrez_Gene_Id column — we work with gene symbols.
     df = df.drop(columns=["Entrez_Gene_Id"], errors="ignore")
-    # Fill blank gene symbols with their positional index so we don't lose rows.
     df.index = [str(g).strip() if str(g).strip() else f"GENE_{i}" for i, g in enumerate(df.index)]
     return df.astype(float)
 
@@ -123,6 +191,9 @@ def page_inventory(pdf: PdfPages, data_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis("off")
 
+    # Shrink chart area so explanation panel fits.
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
+
     lines = ["TCGA-BRCA PanCancer Atlas 2018 — Dataset Inventory", ""]
     lines.append(f"Directory: {data_dir}\n")
 
@@ -134,7 +205,6 @@ def page_inventory(pdf: PdfPages, data_dir: Path) -> None:
             n = sum(1 for _ in fh)
         rows.append((f.name, f"{size_kb:,.0f}", f"{n:,}"))
 
-    col_w = [0.55, 0.2, 0.15]
     y = 0.92
     ax.text(0.02, y + 0.04, lines[0], transform=ax.transAxes,
             fontsize=14, fontweight="bold")
@@ -155,6 +225,28 @@ def page_inventory(pdf: PdfPages, data_dir: Path) -> None:
         if y < 0.02:
             break
 
+    _add_explanation(fig, [
+        "This page lists every data file in the TCGA-BRCA dataset. TCGA stands for The Cancer Genome "
+        "Atlas — a large US government-funded project that collected and shared molecular data from "
+        "thousands of cancer patients across dozens of cancer types. BRCA is their breast cancer "
+        "cohort (~1,100 patients).",
+
+        "Each file captures a different 'view' of each tumour. For example: data_mrna_seq_v2_rsem.txt "
+        "contains RNA-seq gene expression (which genes are active and by how much); "
+        "data_mutations.txt lists every DNA mutation found in the tumour; "
+        "data_clinical_patient.txt records patient outcomes like survival time.",
+
+        "RNA-seq (RNA sequencing) works by reading the messenger RNA molecules inside a tumour cell. "
+        "These molecules carry instructions from DNA to make proteins, so measuring them tells us "
+        "which genes are 'switched on' or 'switched off' in the cancer. The result is a number for "
+        "each of ~20,000 human genes per patient.",
+
+        "Our survival-prediction model currently uses only the RNA-seq file and the clinical file. "
+        "The other files (mutations, copy-number alterations, methylation, protein) are available "
+        "for future experiments when we want to test whether adding more data modalities improves "
+        "prediction accuracy.",
+    ])
+
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 1: dataset inventory")
@@ -165,38 +257,53 @@ def page_demographics(pdf: PdfPages, clin: pd.DataFrame) -> None:
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     fig.suptitle("Patient Demographics  (n = {:,})".format(len(clin)), fontsize=13, y=1.01)
 
-    # BRCA subtype
     ax = axes[0, 0]
     sub_counts = clin["SUBTYPE"].value_counts()
     colours = [SUBTYPE_COLOURS.get(s, DEFAULT_COLOUR) for s in sub_counts.index]
     _bar(ax, sub_counts, "BRCA Molecular Subtype", colour=colours, xlabel="Subtype")
 
-    # Age at diagnosis
     _hist(axes[0, 1], clin["AGE"], "Age at Diagnosis", "Age (years)", colour="#4C72B0")
 
-    # Sex
     ax = axes[0, 2]
     sex_counts = clin["SEX"].value_counts()
     ax.pie(sex_counts, labels=sex_counts.index, autopct="%1.1f%%",
            colors=["#4C72B0", "#DD8452"], startangle=90)
     ax.set_title("Sex")
 
-    # Genetic ancestry
     ax = axes[1, 0]
     anc_counts = clin["GENETIC_ANCESTRY_LABEL"].value_counts()
     _bar(ax, anc_counts, "Genetic Ancestry", colour="#55A868", xlabel="Ancestry")
 
-    # Race
     ax = axes[1, 1]
     race_counts = clin["RACE"].value_counts().head(6)
     _bar(ax, race_counts, "Self-Reported Race", colour="#8172B2", xlabel="Race")
 
-    # Ethnicity
     ax = axes[1, 2]
     eth_counts = clin["ETHNICITY"].value_counts()
     _bar(ax, eth_counts, "Ethnicity", colour="#CCB974", xlabel="Ethnicity")
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "BRCA Molecular Subtype (top-left): Breast cancer is not one disease — it is several, "
+        "defined by which genes are abnormally active. Luminal A (LumA) tumours grow slowly and "
+        "respond well to hormone-blocking drugs. Luminal B (LumB) are similar but faster-growing. "
+        "HER2-enriched tumours overproduce a growth-promoting protein called HER2 and are treated "
+        "with targeted drugs like Herceptin. Basal-like tumours (often called 'triple-negative') "
+        "lack the three common receptors and are the hardest to treat. Each subtype has a different "
+        "expected survival trajectory, which is why subtype is one of the most important variables "
+        "in our model.",
+
+        "Age at Diagnosis (top-middle): Shows how old patients were when their cancer was found. "
+        "The red dashed line is the median age. Breast cancer risk increases with age; the dataset "
+        "skews toward post-menopausal patients, which is typical for TCGA cohorts.",
+
+        "Genetic Ancestry (bottom-left): Derived computationally from the patient's DNA — not "
+        "self-reported. Different ancestry groups can have different baseline mutation rates and "
+        "different typical subtypes (e.g. Basal-like tumours are more common in patients of "
+        "African ancestry). This matters for model fairness: if the dataset is skewed toward one "
+        "group, predictions may be less accurate for underrepresented groups.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 2: demographics")
@@ -208,20 +315,16 @@ def page_cancer_characteristics(pdf: PdfPages, clin: pd.DataFrame,
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     fig.suptitle("Cancer Characteristics", fontsize=13, y=1.01)
 
-    # AJCC pathologic stage (simplified)
     ax = axes[0, 0]
     stage_counts = clin["AJCC_PATHOLOGIC_TUMOR_STAGE"].value_counts()
     _bar(ax, stage_counts, "AJCC Pathologic Stage", colour="#C44E52", xlabel="Stage")
 
-    # Pathologic T stage
     t_counts = clin["PATH_T_STAGE"].value_counts().head(12)
     _bar(axes[0, 1], t_counts, "Pathologic T Stage", colour="#4C72B0", xlabel="T")
 
-    # Pathologic N stage
     n_counts = clin["PATH_N_STAGE"].value_counts().head(10)
     _bar(axes[0, 2], n_counts, "Pathologic N Stage", colour="#DD8452", xlabel="N")
 
-    # Tumour grade (from sample file)
     ax = axes[1, 0]
     if "GRADE" in samp.columns:
         grade_counts = samp["GRADE"].value_counts()
@@ -231,17 +334,41 @@ def page_cancer_characteristics(pdf: PdfPages, clin: pd.DataFrame,
                 transform=ax.transAxes)
         ax.set_title("Histologic Grade")
 
-    # Person neoplasm cancer status
     status_counts = clin["PERSON_NEOPLASM_CANCER_STATUS"].value_counts()
     _bar(axes[1, 1], status_counts, "Neoplasm Cancer Status",
          colour="#8172B2", xlabel="Status")
 
-    # New tumour event after initial treatment
     new_event = clin["NEW_TUMOR_EVENT_AFTER_INITIAL_TREATMENT"].value_counts()
     _bar(axes[1, 2], new_event, "New Tumour Event After Tx",
          colour="#CCB974", xlabel="")
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "AJCC Pathologic Stage (top-left): The standard way oncologists describe how far a cancer "
+        "has progressed, using Roman numerals I–IV. Stage I means a small tumour confined to the "
+        "breast. Stage II means it has grown larger or reached nearby lymph nodes. Stage III "
+        "means it has spread extensively to lymph nodes or nearby tissue. Stage IV means it has "
+        "spread (metastasised) to distant organs. Higher stage generally means shorter survival, "
+        "so stage is a strong predictor our model must account for.",
+
+        "T / N Stages (top-middle and top-right): The full AJCC system breaks down into three "
+        "sub-scores. T (Tumour) describes the size of the primary tumour — T1 is small, T4 is "
+        "very large or has invaded surrounding skin or chest wall. N (Node) describes whether "
+        "cancer cells have been found in nearby lymph nodes — N0 means none, N3 means many. "
+        "A third score M (Metastasis, not shown separately) records distant spread. Together, "
+        "T + N + M determine the overall Stage.",
+
+        "Histologic Grade (bottom-left): A pathologist looks at the tumour cells under a "
+        "microscope and scores how abnormal they look compared to normal breast cells. Grade 1 "
+        "(low) means cells still look fairly normal and tend to grow slowly. Grade 3 (high) "
+        "means cells look very abnormal, divide rapidly, and tend to be more aggressive. Grade "
+        "is independent of how far the cancer has spread.",
+
+        "New Tumour Event After Treatment (bottom-right): Records whether the cancer came back "
+        "after initial treatment (surgery, chemo, radiation). A recurrence event is closely "
+        "related to disease-free survival and is one of the harder outcomes for models to predict.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 3: cancer characteristics")
@@ -281,7 +408,33 @@ def page_survival(pdf: PdfPages, clin: pd.DataFrame) -> None:
     _survival_pair(axes[1, 1], axes[1, 2], "PFS_STATUS", "PFS_MONTHS",
                    "Progression-Free Survival")
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "What 'Event' and 'Censored' mean: When we study survival, we track whether each patient "
+        "experienced a specific outcome (the 'event') by the time the study ended. 'Event' (red) "
+        "means the outcome was observed — for Overall Survival, that means the patient died during "
+        "the study. 'Censored' (blue) means the study ended before we could observe the outcome: "
+        "the patient was still alive at their last clinic visit, or they left the study early. "
+        "Censored patients are not failures or missing data — their data still contributes "
+        "valuable information ('this person survived at least X months').",
+
+        "Overall Survival (OS, top row): The most fundamental endpoint. The pie chart shows what "
+        "fraction of patients died during follow-up vs. were still alive. The histogram shows "
+        "how long patients were followed — each bar is a count of patients whose follow-up lasted "
+        "that many months. The red dashed line marks the median follow-up time. Because TCGA-BRCA "
+        "patients were enrolled over many years, follow-up lengths vary widely.",
+
+        "Disease-Free Survival (DFS, middle): Measures the time from treatment until the cancer "
+        "returns OR the patient dies — whichever comes first. This is stricter than OS because "
+        "a patient whose cancer returned but who is still alive counts as an 'event' here. It "
+        "answers: 'How long does treatment actually keep the disease at bay?'",
+
+        "Progression-Free Survival (PFS, bottom): Similar to DFS, but the 'event' is any sign "
+        "that the tumour is growing again, even if the patient is not yet symptomatic. It is "
+        "commonly used in clinical trials to evaluate whether a drug is working before waiting "
+        "for patients to actually die.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 4: survival endpoints")
@@ -292,7 +445,7 @@ def page_km_curves(pdf: PdfPages, clin: pd.DataFrame) -> None:
     if not HAS_LIFELINES:
         return
 
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.set_title("Overall Survival by BRCA Molecular Subtype", fontsize=12)
 
     df = clin[["SUBTYPE", "OS_MONTHS", "OS_STATUS"]].dropna()
@@ -311,13 +464,38 @@ def page_km_curves(pdf: PdfPages, clin: pd.DataFrame) -> None:
                                    ci_alpha=0.12)
 
     ax.set_xlabel("Months from Diagnosis")
-    ax.set_ylabel("Survival Probability")
+    ax.set_ylabel("Probability of Still Being Alive")
     ax.set_ylim(0, 1.05)
     ax.legend(loc="lower left", fontsize=9)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "What a Kaplan-Meier (KM) curve is: Each line shows the probability that a patient of "
+        "a given subtype is still alive as time passes. At month 0 (diagnosis), everyone is "
+        "alive so all curves start at 1.0 (100%). Every time a patient in that subtype group "
+        "dies, the curve drops by a small step. The curve never rises — once a patient has died, "
+        "that is not reversed. A curve that stays high for longer means patients in that subtype "
+        "tend to survive longer.",
+
+        "The staircase shape: The curve drops in discrete steps rather than a smooth line because "
+        "deaths happen at specific moments in time. Each step down represents one or more patients "
+        "dying at that time point. Between deaths, the curve stays flat because no new information "
+        "has arrived.",
+
+        "The shaded bands: Around each line is a shaded confidence interval. This represents "
+        "statistical uncertainty — the true survival probability for all possible patients of "
+        "that subtype lies within the shaded region with 95% confidence. Wider bands mean fewer "
+        "patients in that group (less data = more uncertainty). Bands that overlap between "
+        "subtypes mean the difference in survival is not statistically clear-cut.",
+
+        "What to look for: Luminal A (blue) tends to have the best long-term survival; Basal-like "
+        "(red) tends to drop fastest in the early years. These differences are precisely what our "
+        "model is trying to learn from the RNA-seq data — ideally, gene expression alone should "
+        "be enough to reproduce and refine this subtype-level ordering at the individual patient level.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 5: Kaplan-Meier curves")
@@ -352,13 +530,37 @@ def page_genomic_instability(pdf: PdfPages, samp: pd.DataFrame) -> None:
         vals = samp["MSI_SENSOR_SCORE"].dropna()
         axes[2].hist(vals, bins=40, color="#55A868", edgecolor="white", linewidth=0.4)
         axes[2].set_title("MSI Sensor Score")
-        axes[2].set_xlabel("Score (>10 = MSI-H)")
+        axes[2].set_xlabel("Score (>10 = MSI-High)")
         axes[2].set_ylabel("Samples")
         axes[2].axvline(10, color="crimson", linestyle="--",
-                        linewidth=1.2, label="MSI-H threshold (10)")
+                        linewidth=1.2, label="MSI-High threshold (10)")
         axes[2].legend(fontsize=7)
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "Tumour Mutational Burden — TMB (left): Counts how many DNA mutations exist per million "
+        "base pairs of DNA in the tumour, counting only mutations that change a protein "
+        "('nonsynonymous'). A higher TMB means the tumour's DNA repair machinery was more broken, "
+        "allowing errors to accumulate. Very high TMB (>10) is clinically important because those "
+        "tumours often respond well to immunotherapy drugs — the immune system can 'see' the "
+        "many mutant proteins. Most breast cancers have low-to-moderate TMB; a long right tail "
+        "in this histogram represents the rare hypermutated tumours.",
+
+        "Aneuploidy Score (middle): Normal human cells have 46 chromosomes arranged in 23 pairs. "
+        "Cancer cells often gain or lose entire chromosomes or large chromosomal arms — this is "
+        "called aneuploidy. The score counts how many chromosomal arms have abnormal copy numbers. "
+        "A score of 0 means the tumour's chromosomes are largely intact. High scores indicate "
+        "chaotic genomes that have lost control of cell division machinery. Aneuploidy tends to "
+        "correlate with higher grade and worse prognosis.",
+
+        "MSI Sensor Score (right): Microsatellites are short repetitive DNA sequences scattered "
+        "throughout the genome. When DNA mismatch repair is defective, these regions mutate "
+        "especially rapidly — this is called Microsatellite Instability (MSI). The red dashed "
+        "line at 10 is the clinical cut-off: samples above it are classified as MSI-High (MSI-H) "
+        "and are eligible for certain immunotherapy treatments. Breast cancer is rarely MSI-H "
+        "(unlike colorectal cancer), so most samples cluster near zero.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 6: genomic instability")
@@ -379,7 +581,7 @@ def page_expression(pdf: PdfPages, data_dir: Path) -> None:
         fontsize=12, y=1.02,
     )
 
-    # Per-sample total log2 expression (box over a random subset of 80 samples)
+    # Per-sample distribution (box over a random subset of 80 samples)
     ax = axes[0]
     sample_subset = log_expr.sample(n=min(80, n_samples), axis=1, random_state=0)
     ax.boxplot(sample_subset.values, notch=False, patch_artist=True,
@@ -401,7 +603,34 @@ def page_expression(pdf: PdfPages, data_dir: Path) -> None:
     ax.set_title("Top 20 Most Variable Genes")
     ax.tick_params(axis="y", labelsize=8)
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "What RNA-seq measures: Every cell in the body contains the same DNA, but different genes "
+        "are turned on or off depending on the cell type and its state. RNA sequencing measures "
+        "which genes are active (being 'read') and by how much. The result is a number per gene "
+        "called RSEM — roughly, how many RNA molecules from that gene were found in the sample. "
+        "A high RSEM value for a gene means that gene is highly active in that tumour.",
+
+        "Why log₂ transform (left plot): Raw RSEM values span an enormous range — a highly "
+        "expressed gene might have a value 10,000× higher than a low-expressed one. Plotting or "
+        "training on raw values would make the few ultra-high genes dominate everything. Taking "
+        "log₂(value + 1) compresses this range so that differences at all expression levels are "
+        "treated more equally. The '+1' prevents log(0) errors for genes with zero reads.",
+
+        "Per-sample distribution (left): Each vertical box shows the spread of expression values "
+        "across all genes for one tumour sample. The red line inside each box is the median gene "
+        "expression for that sample. The boxes look similar across samples, which is reassuring — "
+        "it means there are no wildly outlier samples with systematically different expression "
+        "that would bias the model.",
+
+        "Top 20 most variable genes (right): Of the ~20,000 genes measured, most barely change "
+        "between patients — they are 'housekeeping' genes that every cell needs at about the same "
+        "level. The genes with the highest variance across patients are the most informative for "
+        "distinguishing tumour subtypes and predicting outcomes. Our model uses the top 500 most "
+        "variable genes as its input features. The genes shown here (e.g. MUCL1, FABP7) are "
+        "known markers of breast cancer biology.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 7: expression overview")
@@ -426,7 +655,7 @@ def page_mutations(pdf: PdfPages, data_dir: Path) -> None:
         fontsize=12, y=1.02,
     )
 
-    # Top 25 most frequently mutated genes (by number of unique samples)
+    # Top 25 most frequently mutated genes
     ax = axes[0]
     gene_freq = (
         mut.groupby("Hugo_Symbol")["Tumor_Sample_Barcode"]
@@ -437,8 +666,8 @@ def page_mutations(pdf: PdfPages, data_dir: Path) -> None:
     pct = (gene_freq / n_patients * 100).round(1)
     colours = ["#C44E52" if v >= 5 else "#4C72B0" for v in pct]
     ax.barh(gene_freq.index[::-1], pct.values[::-1], color=colours[::-1])
-    ax.set_xlabel("% Tumours Mutated")
-    ax.set_title("Top 25 Mutated Genes\n(red = ≥5% of tumours)")
+    ax.set_xlabel("% Tumours with a Mutation in This Gene")
+    ax.set_title("Top 25 Mutated Genes\n(red = mutated in ≥5% of tumours)")
     ax.tick_params(axis="y", labelsize=8)
     ax.axvline(5, color="crimson", linestyle="--", linewidth=0.8, alpha=0.6)
 
@@ -449,10 +678,33 @@ def page_mutations(pdf: PdfPages, data_dir: Path) -> None:
     colours_vc = [cmap(i / max(len(vc_counts) - 1, 1)) for i in range(len(vc_counts))]
     ax.barh(vc_counts.index[::-1], vc_counts.values[::-1], color=colours_vc[::-1])
     ax.set_xlabel("Number of Mutations")
-    ax.set_title("Variant Classification Breakdown")
+    ax.set_title("Mutation Type Breakdown")
     ax.tick_params(axis="y", labelsize=8)
 
-    fig.tight_layout()
+    _add_explanation(fig, [
+        "Somatic mutations are DNA changes that happened in the tumour cell during a person's "
+        "lifetime — they are not inherited and not present in normal cells. Finding which genes "
+        "are mutated, and in how many patients, helps identify the 'drivers' of cancer growth.",
+
+        "Top mutated genes (left): Each bar shows what percentage of tumours have at least one "
+        "mutation in that gene. Bars in red are mutated in 5% or more of tumours — these are "
+        "likely driver genes. TP53 is the most commonly mutated gene in cancer overall; it "
+        "normally acts as the cell's 'guardian of the genome', stopping damaged cells from "
+        "dividing. PIK3CA encodes a key protein in a signalling pathway that controls cell "
+        "growth; mutations here are especially common in Luminal A tumours and can be targeted "
+        "with specific drugs.",
+
+        "Mutation type breakdown (right): Not all mutations have the same effect. A Missense "
+        "Mutation changes one amino acid in the resulting protein — the protein still forms but "
+        "may behave differently. A Nonsense Mutation introduces a premature stop signal, "
+        "producing a shortened, usually non-functional protein. A Frame Shift (insertion or "
+        "deletion) shifts the entire reading frame downstream, almost always destroying the "
+        "protein's function. Silent Mutations change the DNA but produce the same amino acid "
+        "and usually have no functional effect. Splice Site Mutations affect how the gene is "
+        "processed into RNA and can alter or destroy the protein.",
+    ])
+
+    fig.tight_layout(rect=[0, _PANEL_HEIGHT_FRAC, 1, 1])
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
     print("[explore] ✓ Page 8: mutation landscape")
@@ -503,7 +755,6 @@ def main(argv: list[str] | None = None) -> int:
         page_expression(pdf, data_dir)
         page_mutations(pdf, data_dir)
 
-        # Attach metadata to the PDF
         info = pdf.infodict()
         info["Title"] = "TCGA-BRCA PanCancer Atlas 2018 — EDA Report"
         info["Author"] = "PathoGems Stage 2 explore_brca.py"
