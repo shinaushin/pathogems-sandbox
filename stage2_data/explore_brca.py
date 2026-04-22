@@ -167,8 +167,8 @@ def _text_page(
         y -= 0.035
 
     # Thin horizontal rule under the title block.
-    ax.axhline(y, xmin=x_margin, xmax=0.96, color="#AAAAAA", linewidth=0.6,
-               transform=ax.transAxes)
+    ax.plot([x_margin, 0.96], [y, y], color="#AAAAAA", linewidth=0.6,
+            transform=ax.transAxes, clip_on=False)
     y -= 0.025
 
     SECTION_FONT = 9.5
