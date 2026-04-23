@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PathoGems — Experiment Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a2e;
+  background: #f8f8f5;
+  margin: 0;
+  padding: 0;
+}
+a { color: #185fa5; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
+        background: #eee; padding: 1px 5px; border-radius: 3px; }
+
+/* Layout */
+.page-header {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 2rem 2.5rem 1.5rem;
+}
+.page-header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 500; }
+.page-header p  { margin: 0; font-size: 12px; color: #aaa; }
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 2rem; }
+.section-head {
+  font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+  color: #888; margin: 2rem 0 0.75rem; border-bottom: 1px solid #e0e0d8; padding-bottom: 6px;
+}
+
+/* Summary table */
+.summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.summary-table th {
+  text-align: left; font-weight: 500; font-size: 11px; color: #666;
+  border-bottom: 1.5px solid #ccc; padding: 6px 10px;
+}
+.summary-table td { padding: 7px 10px; border-bottom: 1px solid #ececec; vertical-align: top; }
+.summary-table tr:hover td { background: #f2f2ee; }
+.col-name  { min-width: 200px; font-weight: 500; }
+.col-ci    { white-space: nowrap; }
+.col-num   { text-align: right; white-space: nowrap; }
+.col-status { text-align: center; }
+.col-started { white-space: nowrap; font-size: 12px; color: #888; }
+.col-diffs { font-size: 12px; }
+
+/* C-index colour coding */
+.ci-great { color: #085041; font-weight: 500; }
+.ci-good  { color: #3b6d11; }
+.ci-low   { color: #854f0b; }
+.ci-bad   { color: #a32d2d; font-weight: 500; }
+.ci-na    { color: #888; }
+
+/* Status */
+.status-ok  { color: #085041; }
+.status-err { color: #a32d2d; font-weight: 500; }
+
+/* Diff pills in summary */
+.diff-pill {
+  display: inline-block; background: #eef3fb; color: #185fa5;
+  border: 1px solid #b5d4f4; border-radius: 12px;
+  padding: 1px 8px; margin: 2px 3px 2px 0; font-size: 11px;
+  white-space: nowrap;
+}
+.diff-same    { color: #888; font-style: italic; }
+.diff-baseline { color: #634f0b; background: #faeeda; border-radius: 12px;
+                  padding: 1px 8px; font-size: 11px; font-weight: 500; }
+
+/* Experiment sections */
+.exp-section {
+  background: #fff;
+  border: 1px solid #e0e0d8;
+  border-radius: 10px;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem;
+}
+.exp-title {
+  font-size: 17px; font-weight: 500; margin: 0 0 6px; color: #1a1a2e;
+}
+.exp-meta { font-size: 12px; color: #888; margin-bottom: 1.25rem; }
+.exp-section h3 {
+  font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em;
+  color: #666; margin: 1.25rem 0 0.6rem; border-bottom: 1px solid #eee; padding-bottom: 5px;
+}
+.muted { color: #999; font-style: italic; font-size: 13px; margin: 4px 0; }
+
+/* Config diff table */
+.diff-table { border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.diff-table td { padding: 5px 12px; vertical-align: top; }
+.diff-key  { color: #555; font-weight: 500; white-space: nowrap; }
+.diff-old  { color: #a32d2d; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
+.diff-new  { color: #085041; background: #edf7f3; border-radius: 4px; padding: 2px 8px; }
+.diff-arrow { color: #aaa; padding: 5px 4px; }
+
+/* Fold bars */
+.fold-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 7px; font-size: 13px;
+}
+.fold-label { width: 50px; color: #666; flex-shrink: 0; }
+.fold-bar-wrap {
+  flex: 1; background: #f0f0ea; border-radius: 4px; height: 20px;
+  position: relative; overflow: hidden;
+}
+.bench-band {
+  position: absolute; top: 0; height: 20px;
+  background: rgba(186,117,23,0.12);
+  border-left: 1.5px solid rgba(186,117,23,0.45);
+  border-right: 1.5px solid rgba(186,117,23,0.45);
+}
+.fold-bar {
+  height: 20px; border-radius: 4px; position: absolute; left: 0; top: 0;
+  transition: width .3s;
+}
+.fold-bar.ci-great { background: #1d9e75; }
+.fold-bar.ci-good  { background: #639922; }
+.fold-bar.ci-low   { background: #ef9f27; }
+.fold-bar.ci-bad   { background: #d85a30; }
+.fold-val { width: 52px; text-align: right; color: #333; flex-shrink: 0; font-size: 12px; }
+
+/* Legend */
+.bench-legend { font-size: 11px; font-weight: 400; color: #ba7517; margin-left: 8px; }
+.curve-legend { font-size: 11px; font-weight: 400; color: #888; margin-left: 8px; }
+.leg-solid { border-bottom: 2px solid #888; padding-bottom: 1px; }
+.leg-dash  { border-bottom: 2px dashed #888; padding-bottom: 1px; margin-left: 8px; }
+
+/* Comparison chart wrapper */
+.chart-card {
+  background: #fff; border: 1px solid #e0e0d8;
+  border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <h1>PathoGems — Experiment Report</h1>
+  <p>TCGA-BRCA survival prediction &nbsp;·&nbsp; 1 experiment &nbsp;·&nbsp; Generated 2026-04-23 21:14 UTC</p>
+</div>
+
+<div class="container">
+
+<p class="section-head">C-index comparison</p>
+<div class="chart-card">
+
+<div style="position:relative;width:100%;height:200px;">
+  <canvas id="cmp-chart" role="img"
+    aria-label="C-index comparison bar chart across 1 experiments.">
+    Comparison chart of mean C-index across experiments.
+  </canvas>
+</div>
+<script>
+(function(){
+  const names   = ["brca_omics_baseline"];
+  const means   = [0.540190];
+  const stds    = [0.081087];
+  const colors  = ["#3266ad"];
+  const benchLo = 0.62;
+  const benchHi = 0.68;
+
+  const errBars = means.map((m,i) => ({
+    x: m, y: names[i],
+    xMin: Math.max(0, m - stds[i]),
+    xMax: Math.min(1, m + stds[i]),
+  }));
+
+  new Chart(document.getElementById('cmp-chart'), {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [
+        {
+          label: 'Mean C-index',
+          data: means,
+          backgroundColor: colors,
+          borderWidth: 0,
+          barThickness: 28,
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        annotation: {
+          annotations: {
+            benchBand: {
+              type: 'box',
+              xMin: benchLo, xMax: benchHi,
+              backgroundColor: 'rgba(186,117,23,0.10)',
+              borderColor: 'rgba(186,117,23,0.50)',
+              borderWidth: 1,
+              label: {
+                display: true,
+                content: 'Benchmark 0.62–0.68',
+                position: 'start',
+                font: { size: 10 },
+                color: '#ba7517',
+              }
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const i = ctx.dataIndex;
+              return `C-index: ${means[i].toFixed(4)} ± ${stds[i].toFixed(4)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: 0.40, max: 0.80,
+          title: { display: true, text: 'Harrell C-index', font: { size: 12 } },
+          ticks: { font: { size: 11 }, callback: v => v.toFixed(2) }
+        },
+        y: {
+          ticks: { font: { size: 11 } }
+        }
+      }
+    }
+  });
+})();
+</script>
+</div>
+
+<p class="section-head">Summary (1 experiments)</p>
+<div style="overflow-x:auto;">
+<table class="summary-table">
+  <thead>
+    <tr>
+      <th>Experiment</th>
+      <th>Mean C-index ± std</th>
+      <th style="text-align:right">Best fold</th>
+      <th style="text-align:right">Worst fold</th>
+      <th style="text-align:center">Status</th>
+      <th style="text-align:right">Wall time</th>
+      <th>Started</th>
+      <th>Config changes vs baseline</th>
+    </tr>
+  </thead>
+  <tbody>
+
+<tr id="row-0">
+  <td class="col-name"><a href="#exp-0">brca_omics_baseline ★</a></td>
+  <td class="ci-low col-ci">0.5402 ± 0.0811</td>
+  <td class="col-num">0.6639</td>
+  <td class="col-num">0.4576</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">4.3s</td>
+  <td class="col-started">2026-04-23 20:53</td>
+  <td class="col-diffs"><span class="diff-baseline">baseline</span></td>
+</tr>
+  </tbody>
+</table>
+</div>
+
+<p class="section-head">Experiment details</p>
+
+<section class="exp-section" id="exp-0">
+  <h2 class="exp-title">brca_omics_baseline</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-23 20:53 &nbsp;|&nbsp;
+    Wall time: 4.3s &nbsp;|&nbsp;
+    Git: <code>961db685d3</code>
+  </div>
+
+  <h3>Config changes vs baseline</h3>
+  <p class="muted">This is the baseline — all other experiments are diffed against it.</p>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:64.9%"></div>
+  </div>
+  <span class="fold-val">0.5194</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:83.0%"></div>
+  </div>
+  <span class="fold-val">0.6639</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:61.0%"></div>
+  </div>
+  <span class="fold-val">0.4879</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:71.5%"></div>
+  </div>
+  <span class="fold-val">0.5721</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:57.2%"></div>
+  </div>
+  <span class="fold-val">0.4576</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-0" role="img"
+    aria-label="Training and validation loss curves for brca_omics_baseline">
+    Loss curves for brca_omics_baseline.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-0'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:6.0514},{x:2,y:6.0134},{x:3,y:5.9311},{x:4,y:6.1513},{x:5,y:5.9942},{x:6,y:5.8524},{x:7,y:5.8681},{x:8,y:5.8927},{x:9,y:5.7431},{x:10,y:5.7645},{x:11,y:5.7396},{x:12,y:5.8531},{x:13,y:6.0213},{x:14,y:5.7262},{x:15,y:5.5964},{x:16,y:5.6899},{x:17,y:5.6828},{x:18,y:5.6165},{x:19,y:5.6169},{x:20,y:5.6029},{x:21,y:5.7143},{x:22,y:5.6632},{x:23,y:5.5602},{x:24,y:5.6333},{x:25,y:5.5417},{x:26,y:5.7570},{x:27,y:5.5036},{x:28,y:5.4930},{x:29,y:5.6027},{x:30,y:5.5073},{x:31,y:5.3381},{x:32,y:5.4897},{x:33,y:5.4325},{x:34,y:5.4086},{x:35,y:5.4572},{x:36,y:5.3009},{x:37,y:5.4054},{x:38,y:5.5613},{x:39,y:5.4291},{x:40,y:5.4422},{x:41,y:5.3900},{x:42,y:5.2622},{x:43,y:5.4084},{x:44,y:5.4265},{x:45,y:5.3436},{x:46,y:5.3813},{x:47,y:5.4539},{x:48,y:5.2931},{x:49,y:5.2845},{x:50,y:5.3338}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:4.1893},{x:2,y:4.0205},{x:3,y:3.8937},{x:4,y:3.8067},{x:5,y:3.7365},{x:6,y:3.6843},{x:7,y:3.6450},{x:8,y:3.6128},{x:9,y:3.5861},{x:10,y:3.5657},{x:11,y:3.5484},{x:12,y:3.5367},{x:13,y:3.5248},{x:14,y:3.5120},{x:15,y:3.5015},{x:16,y:3.4913},{x:17,y:3.4809},{x:18,y:3.4705},{x:19,y:3.4631},{x:20,y:3.4553},{x:21,y:3.4483},{x:22,y:3.4423},{x:23,y:3.4372},{x:24,y:3.4321},{x:25,y:3.4265},{x:26,y:3.4214},{x:27,y:3.4165},{x:28,y:3.4121},{x:29,y:3.4074},{x:30,y:3.4032},{x:31,y:3.3988},{x:32,y:3.3939},{x:33,y:3.3902},{x:34,y:3.3882},{x:35,y:3.3850},{x:36,y:3.3828},{x:37,y:3.3810},{x:38,y:3.3791},{x:39,y:3.3763},{x:40,y:3.3750},{x:41,y:3.3730},{x:42,y:3.3726},{x:43,y:3.3718},{x:44,y:3.3707},{x:45,y:3.3708},{x:46,y:3.3705},{x:47,y:3.3695},{x:48,y:3.3689},{x:49,y:3.3682},{x:50,y:3.3675}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:5.8544},{x:2,y:5.8441},{x:3,y:5.7912},{x:4,y:5.8001},{x:5,y:6.0188},{x:6,y:5.7860},{x:7,y:5.8226},{x:8,y:5.7488},{x:9,y:5.6683},{x:10,y:5.6968},{x:11,y:5.6962},{x:12,y:5.6816},{x:13,y:5.7480},{x:14,y:5.5492},{x:15,y:5.6506},{x:16,y:5.6971},{x:17,y:5.8221},{x:18,y:5.7230},{x:19,y:5.6320},{x:20,y:5.5640},{x:21,y:5.4520},{x:22,y:5.5170},{x:23,y:5.4996},{x:24,y:5.4989},{x:25,y:5.6008},{x:26,y:5.4795},{x:27,y:5.5997},{x:28,y:5.4020},{x:29,y:5.4964},{x:30,y:5.4438},{x:31,y:5.3547},{x:32,y:5.5558},{x:33,y:5.3463},{x:34,y:5.4474},{x:35,y:5.4774},{x:36,y:5.5284},{x:37,y:5.5539},{x:38,y:5.2918},{x:39,y:5.2048},{x:40,y:5.3268}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.4291},{x:2,y:3.3596},{x:3,y:3.3133},{x:4,y:3.2795},{x:5,y:3.2525},{x:6,y:3.2305},{x:7,y:3.2123},{x:8,y:3.1973},{x:9,y:3.1857},{x:10,y:3.1757},{x:11,y:3.1667},{x:12,y:3.1598},{x:13,y:3.1542},{x:14,y:3.1500},{x:15,y:3.1458},{x:16,y:3.1427},{x:17,y:3.1410},{x:18,y:3.1407},{x:19,y:3.1395},{x:20,y:3.1370},{x:21,y:3.1356},{x:22,y:3.1348},{x:23,y:3.1331},{x:24,y:3.1327},{x:25,y:3.1323},{x:26,y:3.1312},{x:27,y:3.1290},{x:28,y:3.1279},{x:29,y:3.1279},{x:30,y:3.1278},{x:31,y:3.1291},{x:32,y:3.1291},{x:33,y:3.1285},{x:34,y:3.1293},{x:35,y:3.1301},{x:36,y:3.1301},{x:37,y:3.1297},{x:38,y:3.1290},{x:39,y:3.1287},{x:40,y:3.1300}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:5.8626},{x:2,y:5.8160},{x:3,y:5.8385},{x:4,y:5.7751},{x:5,y:5.8123},{x:6,y:5.7240},{x:7,y:5.6202},{x:8,y:5.6003},{x:9,y:5.5104},{x:10,y:5.6050},{x:11,y:5.6271},{x:12,y:5.7377},{x:13,y:5.5896},{x:14,y:5.5237},{x:15,y:5.7319},{x:16,y:5.7466},{x:17,y:5.6066},{x:18,y:5.5496},{x:19,y:5.5372},{x:20,y:5.4170},{x:21,y:5.3595},{x:22,y:5.5671},{x:23,y:5.5742},{x:24,y:5.4599},{x:25,y:5.5935},{x:26,y:5.2925},{x:27,y:5.4119},{x:28,y:5.4013},{x:29,y:5.3343},{x:30,y:5.3559},{x:31,y:5.4972},{x:32,y:5.3343},{x:33,y:5.3386},{x:34,y:5.3209},{x:35,y:5.5134},{x:36,y:5.2194},{x:37,y:5.2642}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:3.7600},{x:2,y:3.7413},{x:3,y:3.7240},{x:4,y:3.7048},{x:5,y:3.6884},{x:6,y:3.6730},{x:7,y:3.6614},{x:8,y:3.6538},{x:9,y:3.6477},{x:10,y:3.6431},{x:11,y:3.6381},{x:12,y:3.6329},{x:13,y:3.6289},{x:14,y:3.6252},{x:15,y:3.6215},{x:16,y:3.6182},{x:17,y:3.6152},{x:18,y:3.6118},{x:19,y:3.6078},{x:20,y:3.6040},{x:21,y:3.5998},{x:22,y:3.5959},{x:23,y:3.5938},{x:24,y:3.5920},{x:25,y:3.5903},{x:26,y:3.5890},{x:27,y:3.5873},{x:28,y:3.5878},{x:29,y:3.5878},{x:30,y:3.5880},{x:31,y:3.5881},{x:32,y:3.5880},{x:33,y:3.5879},{x:34,y:3.5880},{x:35,y:3.5880},{x:36,y:3.5888},{x:37,y:3.5891}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.4571},{x:2,y:5.5185},{x:3,y:5.4283},{x:4,y:5.3718},{x:5,y:5.5960},{x:6,y:5.4770},{x:7,y:5.4149},{x:8,y:5.4177},{x:9,y:5.4744},{x:10,y:5.3759},{x:11,y:5.3797},{x:12,y:5.3445},{x:13,y:5.3145},{x:14,y:5.3776},{x:15,y:5.4592},{x:16,y:5.3590},{x:17,y:5.3380},{x:18,y:5.3474},{x:19,y:5.2966},{x:20,y:5.3695},{x:21,y:5.3465},{x:22,y:5.2870},{x:23,y:5.2850},{x:24,y:5.3768},{x:25,y:5.2470},{x:26,y:5.2601},{x:27,y:5.2241},{x:28,y:5.2843},{x:29,y:5.2372},{x:30,y:5.2933},{x:31,y:5.1698},{x:32,y:5.2607},{x:33,y:5.1338},{x:34,y:5.1849},{x:35,y:5.2802},{x:36,y:5.1474},{x:37,y:5.2407},{x:38,y:5.1792},{x:39,y:5.2870},{x:40,y:5.1868},{x:41,y:5.0115},{x:42,y:5.1337},{x:43,y:5.1881},{x:44,y:5.1176},{x:45,y:5.1395},{x:46,y:5.0858},{x:47,y:5.1361},{x:48,y:5.1401},{x:49,y:5.1567},{x:50,y:5.0713}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:3.8276},{x:2,y:3.7723},{x:3,y:3.7318},{x:4,y:3.6988},{x:5,y:3.6728},{x:6,y:3.6490},{x:7,y:3.6285},{x:8,y:3.6104},{x:9,y:3.5937},{x:10,y:3.5774},{x:11,y:3.5628},{x:12,y:3.5494},{x:13,y:3.5363},{x:14,y:3.5257},{x:15,y:3.5180},{x:16,y:3.5108},{x:17,y:3.5040},{x:18,y:3.4982},{x:19,y:3.4939},{x:20,y:3.4908},{x:21,y:3.4872},{x:22,y:3.4822},{x:23,y:3.4778},{x:24,y:3.4730},{x:25,y:3.4685},{x:26,y:3.4656},{x:27,y:3.4634},{x:28,y:3.4609},{x:29,y:3.4584},{x:30,y:3.4573},{x:31,y:3.4556},{x:32,y:3.4548},{x:33,y:3.4531},{x:34,y:3.4520},{x:35,y:3.4508},{x:36,y:3.4502},{x:37,y:3.4498},{x:38,y:3.4485},{x:39,y:3.4492},{x:40,y:3.4492},{x:41,y:3.4482},{x:42,y:3.4478},{x:43,y:3.4488},{x:44,y:3.4494},{x:45,y:3.4505},{x:46,y:3.4506},{x:47,y:3.4516},{x:48,y:3.4521},{x:49,y:3.4530},{x:50,y:3.4538}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:5.6619},{x:2,y:5.6592},{x:3,y:5.5680},{x:4,y:5.6473},{x:5,y:5.7623},{x:6,y:5.6428},{x:7,y:5.6950},{x:8,y:5.6087},{x:9,y:5.5429},{x:10,y:5.5483},{x:11,y:5.6594}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.2198},{x:2,y:3.2256},{x:3,y:3.2357},{x:4,y:3.2471},{x:5,y:3.2567},{x:6,y:3.2631},{x:7,y:3.2682},{x:8,y:3.2730},{x:9,y:3.2797},{x:10,y:3.2879},{x:11,y:3.2932}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+
+</div>
+</body>
+</html>
