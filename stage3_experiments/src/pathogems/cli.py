@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import subprocess
 import sys
 import traceback
 from datetime import UTC, datetime
@@ -52,6 +53,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Suppress per-fold progress lines.",
     )
+    p.add_argument(
+        "--no-report",
+        action="store_true",
+        help="Skip refreshing the HTML experiment report after a successful run.",
+    )
     return p.parse_args(argv)
 
 
@@ -77,6 +83,43 @@ def _validate_study_dir(study_dir: Path) -> None:
         raise FileNotFoundError(
             f"Study data directory {study_dir} is missing expected files: {missing}\n"
             f"Run `python stage2_data/fetch_cbioportal_brca.py` to re-download."
+        )
+
+
+def _refresh_report(logs_dir: Path) -> None:
+    """Regenerate the HTML experiment report after a successful run.
+
+    The report script and output directory are located relative to logs_dir:
+        <stage3_root>/scripts/experiment_report.py
+        <stage3_root>/reports/experiment_report.html
+
+    Failure is non-fatal: a warning is logged but the CLI still exits 0,
+    because a missing report should never mask a successful training run.
+    """
+    stage3_root = logs_dir.parent
+    report_script = stage3_root / "scripts" / "experiment_report.py"
+    report_out = stage3_root / "reports" / "experiment_report.html"
+
+    if not report_script.exists():
+        log.warning(
+            "Report script not found at %s — skipping report refresh. "
+            "Pass --no-report to silence this warning.",
+            report_script,
+        )
+        return
+
+    proc = subprocess.run(
+        [sys.executable, str(report_script), "--logs-dir", str(logs_dir), "--out", str(report_out)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        log.info("Report refreshed → %s", report_out)
+    else:
+        log.warning(
+            "Report generation failed (exit %d):\n%s",
+            proc.returncode,
+            proc.stderr.strip(),
         )
 
 
@@ -143,6 +186,14 @@ def main(argv: list[str] | None = None) -> int:
                 config.n_folds,
                 log_path,
             )
+
+            # Refresh the HTML experiment report unless the caller opted out.
+            # Paths are derived from --logs-dir so nothing extra needs configuring:
+            #   logs-dir/../scripts/experiment_report.py
+            #   logs-dir/../reports/experiment_report.html
+            if not args.no_report:
+                _refresh_report(args.logs_dir)
+
             return 0
 
         except BaseException as exc:  # we want to catch everything, log, re-raise
