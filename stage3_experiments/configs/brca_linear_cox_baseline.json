@@ -19,6 +19,9 @@
   "early_stopping_patience": 15,
   "val_fraction": 0.1,
   "n_folds": 5,
+  "enable_mlflow": true,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
   "notes": "Baseline-of-the-baseline: linear Cox (no hidden layers). Higher lr and weight_decay than omics_mlp because there is no BN/dropout to regularize. hidden_dims/dropout/use_batchnorm are ignored by the LinearCox factory; left at baseline values to make this config a minimal diff of brca_omics_baseline.json.",
   "config_version": 1
 }

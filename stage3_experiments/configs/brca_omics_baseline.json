@@ -19,6 +19,9 @@
   "early_stopping_patience": 10,
   "val_fraction": 0.1,
   "n_folds": 5,
+  "enable_mlflow": true,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
   "notes": "ADR 0001/0002/0004/0007 baseline. Omics-only MLP on top-500 variable genes, Cox PH loss, 5-fold stratified CV, full-batch gradient descent (batch_size=null).",
   "config_version": 1
 }
