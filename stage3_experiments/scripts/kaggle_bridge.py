@@ -88,8 +88,8 @@ POLL_INTERVAL_SEC = 30
 MAX_WAIT_SEC = 5400
 
 #: This file lives in stage3_experiments/scripts/, so:
-_STAGE3_ROOT = Path(__file__).resolve().parent.parent   # stage3_experiments/
-_PROJECT_ROOT = _STAGE3_ROOT.parent                     # repo root
+_STAGE3_ROOT = Path(__file__).resolve().parent.parent  # stage3_experiments/
+_PROJECT_ROOT = _STAGE3_ROOT.parent  # repo root
 
 log = logging.getLogger(__name__)
 
@@ -143,10 +143,7 @@ def authenticate() -> KaggleApiExtended:
     token = os.environ.get("KAGGLE_API_TOKEN") or _read_token_file()
     if not token:
         print("\nNo Kaggle token found.")
-        print(
-            "Generate one at https://www.kaggle.com/settings "
-            "(API → Generate New Token)"
-        )
+        print("Generate one at https://www.kaggle.com/settings (API → Generate New Token)")
         print("Then either:")
         print("  export KAGGLE_API_TOKEN=your_token")
         print("  or save it to ~/.kaggle/access_token")
@@ -319,7 +316,7 @@ def _make_config_cell(config: dict) -> str:
         f"_CONFIG = {config_json!r}",
         "_CONFIG_PATH = Path('/tmp/run_config.json')",
         "_CONFIG_PATH.write_text(json.dumps(_CONFIG))",
-        "print(f\"Config written → {_CONFIG_PATH}\")",
+        'print(f"Config written → {_CONFIG_PATH}")',
         "print(f\"  name:    {_CONFIG['name']}\")",
         "print(f\"  model:   {_CONFIG.get('model', 'N/A')}\")",
         "print(f\"  n_folds: {_CONFIG.get('n_folds', 'N/A')}\")",
@@ -478,9 +475,7 @@ def wait_for_completion(api: "KaggleApiExtended", kernel_ref: str) -> str:
     return "timeout"
 
 
-def fetch_outputs(
-    api: "KaggleApiExtended", kernel_ref: str, output_dir: Path
-) -> list[Path]:
+def fetch_outputs(api: "KaggleApiExtended", kernel_ref: str, output_dir: Path) -> list[Path]:
     """Download all kernel output files to ``output_dir``."""
     output_dir.mkdir(parents=True, exist_ok=True)
     _log(f"Fetching outputs → {output_dir}")
@@ -525,10 +520,7 @@ def _print_fold_summary(log_path: Path) -> None:
         val_curve: list[float] = curves.get(str(i), {}).get("val", [])
         epochs = len(val_curve)
         best = int(min(range(epochs), key=lambda e: val_curve[e])) + 1 if epochs else 0
-        print(
-            f"  {i + 1:>4}  {c:>8.4f}  {loss:>9.4f}  "
-            f"{epochs:>7d}  {best:>6d}"
-        )
+        print(f"  {i + 1:>4}  {c:>8.4f}  {loss:>9.4f}  " f"{epochs:>7d}  {best:>6d}")
 
     mean = metrics.get("c_index_mean", float("nan"))
     std = metrics.get("c_index_std", float("nan"))
@@ -685,15 +677,9 @@ def dry_run(
         _log(f"  kernel metadata:  kernel-metadata.json")
         _log("")
         _log("To run for real (CPU, no GPU quota):")
-        _log(
-            f"  python {Path(__file__).name} "
-            f"--config {config_path}"
-        )
+        _log(f"  python {Path(__file__).name} " f"--config {config_path}")
         _log("To run with GPU:")
-        _log(
-            f"  python {Path(__file__).name} "
-            f"--config {config_path} --gpu"
-        )
+        _log(f"  python {Path(__file__).name} " f"--config {config_path} --gpu")
         return True
 
     return False
@@ -774,9 +760,7 @@ def run_bridge(
 
         # 6. Download the outputs the notebook staged in /kaggle/working/outputs/.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = (
-            _STAGE3_ROOT / "kaggle_outputs" / f"{slug}_{timestamp}"
-        )
+        output_dir = _STAGE3_ROOT / "kaggle_outputs" / f"{slug}_{timestamp}"
         files = fetch_outputs(api, kernel_ref, output_dir)
 
         # 7. Route JSON logs → logs/, .pt files → checkpoints/.
