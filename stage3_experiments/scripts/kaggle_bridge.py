@@ -569,6 +569,146 @@ def route_outputs(files: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _make_kernel_slug(config: dict, config_path: Path) -> str:
+    """Derive a Kaggle-safe kernel slug from the experiment name."""
+    exp_name: str = config.get("name", config_path.stem)
+    return exp_name.lower().replace("_", "-")[:50]
+
+
+def dry_run(
+    config_path: Path,
+    enable_gpu: bool,
+    kernel_slug: str | None = None,
+) -> bool:
+    """Validate every local step without pushing anything to Kaggle.
+
+    Checks credentials, bundles the source, generates the training notebook,
+    and writes the output to ``stage3_experiments/kaggle_outputs/dry_run/``
+    so you can inspect the notebook before committing a real push.
+
+    Nothing is sent to Kaggle — no quota is consumed.
+
+    Args:
+        config_path: Path to the experiment config JSON.
+        enable_gpu:  GPU flag to embed in kernel metadata (no effect locally).
+        kernel_slug: Kernel slug override.
+
+    Returns:
+        ``True`` if all local steps succeeded; ``False`` on any error.
+    """
+    config = json.loads(config_path.read_text())
+    slug = kernel_slug or _make_kernel_slug(config, config_path)
+    username = _kaggle_username()
+
+    _log("=== DRY RUN — nothing will be pushed to Kaggle ===")
+    _log(f"Experiment: {config.get('name', config_path.stem)}")
+    _log(f"Config:     {config_path}")
+    _log(f"Slug:       {slug}")
+    _log(f"GPU:        {enable_gpu}")
+
+    out_dir = _STAGE3_ROOT / "kaggle_outputs" / "dry_run"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    results: list[tuple[str, bool, str]] = []  # (step, ok, detail)
+
+    # Step 1 — credentials
+    try:
+        authenticate()
+        results.append(("credentials", True, f"authenticated as '{username}'"))
+    except SystemExit:
+        results.append(("credentials", False, "auth failed — check token/username"))
+        _print_dry_run_summary(results)
+        return False
+
+    # Step 2 — source bundle
+    tar_path = out_dir / "pathogems_src.tar.gz"
+    try:
+        _bundle_source(tar_path)
+        size_kb = tar_path.stat().st_size // 1024
+        results.append(("source bundle", True, f"{tar_path.name}  ({size_kb} KB)"))
+    except Exception as exc:
+        results.append(("source bundle", False, str(exc)))
+        _print_dry_run_summary(results)
+        return False
+
+    # Step 3 — notebook generation
+    nb_name = f"{slug}.ipynb"
+    nb_path = out_dir / nb_name
+    try:
+        nb = build_notebook(config)
+        nbformat.write(nb, nb_path)
+        n_cells = len(nb.cells)
+        results.append(("notebook", True, f"{nb_name}  ({n_cells} cells)"))
+    except Exception as exc:
+        results.append(("notebook", False, str(exc)))
+        _print_dry_run_summary(results)
+        return False
+
+    # Step 4 — kernel metadata
+    meta_path = out_dir / "kernel-metadata.json"
+    try:
+        _write_kernel_metadata(
+            folder=out_dir,
+            kernel_slug=slug,
+            notebook_filename=nb_name,
+            enable_gpu=enable_gpu,
+            username=username,
+        )
+        meta = json.loads(meta_path.read_text())
+        results.append(("kernel metadata", True, f"id={meta['id']}"))
+    except Exception as exc:
+        results.append(("kernel metadata", False, str(exc)))
+        _print_dry_run_summary(results)
+        return False
+
+    # Step 5 — notebook cell sanity check (parse each cell as valid Python)
+    import ast
+
+    bad_cells: list[int] = []
+    for idx, cell in enumerate(nb.cells):
+        try:
+            ast.parse(cell["source"])
+        except SyntaxError as exc:
+            bad_cells.append(idx + 1)
+            _log(f"  cell {idx + 1} syntax error: {exc}")
+    if bad_cells:
+        results.append(("cell syntax", False, f"cells with errors: {bad_cells}"))
+    else:
+        results.append(("cell syntax", True, f"all {n_cells} cells parse cleanly"))
+
+    _print_dry_run_summary(results)
+
+    if all(ok for _, ok, _ in results):
+        _log(f"Inspect the generated kernel at: {out_dir}")
+        _log(f"  notebook:         {nb_name}")
+        _log(f"  source tarball:   pathogems_src.tar.gz")
+        _log(f"  kernel metadata:  kernel-metadata.json")
+        _log("")
+        _log("To run for real (CPU, no GPU quota):")
+        _log(
+            f"  python {Path(__file__).name} "
+            f"--config {config_path}"
+        )
+        _log("To run with GPU:")
+        _log(
+            f"  python {Path(__file__).name} "
+            f"--config {config_path} --gpu"
+        )
+        return True
+
+    return False
+
+
+def _print_dry_run_summary(results: list[tuple[str, bool, str]]) -> None:
+    """Print a checklist of dry-run step outcomes."""
+    print()
+    print("  Dry-run checklist:")
+    for step, ok, detail in results:
+        mark = "✓" if ok else "✗"
+        print(f"    [{mark}] {step:<20}  {detail}")
+    print()
+
+
 def run_bridge(
     config_path: Path,
     enable_gpu: bool,
@@ -587,14 +727,11 @@ def run_bridge(
         routed; ``False`` on kernel error or timeout.
     """
     config = json.loads(config_path.read_text())
-    exp_name: str = config.get("name", config_path.stem)
+    slug = kernel_slug or _make_kernel_slug(config, config_path)
 
-    if not kernel_slug:
-        kernel_slug = exp_name.lower().replace("_", "-")[:50]
-
-    _log(f"Experiment: {exp_name}")
+    _log(f"Experiment: {config.get('name', config_path.stem)}")
     _log(f"Config:     {config_path}")
-    _log(f"Slug:       {kernel_slug}")
+    _log(f"Slug:       {slug}")
     _log(f"GPU:        {enable_gpu}")
 
     api = authenticate()
@@ -607,7 +744,7 @@ def run_bridge(
 
         # 2. Build and write the training notebook.
         nb = build_notebook(config)
-        nb_name = f"{kernel_slug}.ipynb"
+        nb_name = f"{slug}.ipynb"
         nb_path = tmp_dir / nb_name
         nbformat.write(nb, nb_path)
         _log(f"Notebook:   {nb_path.name}")
@@ -615,7 +752,7 @@ def run_bridge(
         # 3. Write the Kaggle kernel metadata alongside the notebook.
         _write_kernel_metadata(
             folder=tmp_dir,
-            kernel_slug=kernel_slug,
+            kernel_slug=slug,
             notebook_filename=nb_name,
             enable_gpu=enable_gpu,
             username=username,
@@ -638,7 +775,7 @@ def run_bridge(
         # 6. Download the outputs the notebook staged in /kaggle/working/outputs/.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = (
-            _STAGE3_ROOT / "kaggle_outputs" / f"{kernel_slug}_{timestamp}"
+            _STAGE3_ROOT / "kaggle_outputs" / f"{slug}_{timestamp}"
         )
         files = fetch_outputs(api, kernel_ref, output_dir)
 
@@ -691,6 +828,17 @@ def main() -> None:
         default=None,
         help="Kernel slug override. Default: derived from the experiment name field.",
     )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help=(
+            "Validate credentials, bundle source, and generate the notebook locally "
+            "without pushing anything to Kaggle. Writes output to "
+            "stage3_experiments/kaggle_outputs/dry_run/ for inspection. "
+            "No quota is consumed."
+        ),
+    )
     args = p.parse_args()
 
     config_path = Path(args.config)
@@ -698,11 +846,18 @@ def main() -> None:
         print(f"Config not found: {config_path}")
         sys.exit(1)
 
-    ok = run_bridge(
-        config_path=config_path,
-        enable_gpu=args.gpu,
-        kernel_slug=args.slug,
-    )
+    if args.dry_run:
+        ok = dry_run(
+            config_path=config_path,
+            enable_gpu=args.gpu,
+            kernel_slug=args.slug,
+        )
+    else:
+        ok = run_bridge(
+            config_path=config_path,
+            enable_gpu=args.gpu,
+            kernel_slug=args.slug,
+        )
     sys.exit(0 if ok else 1)
 
 
