@@ -937,6 +937,189 @@ def page_expression(pdf: PdfPages, data_dir: Path) -> None:
     print("[explore] ✓ Page 7: expression overview")
 
 
+def page_data_preprocessing(pdf: PdfPages) -> None:
+    """Text page: full data pre-processing pipeline with plain-language explanations."""
+    _text_page(
+        pdf,
+        title="Data Pre-Processing Pipeline",
+        subtitle="How raw TCGA-BRCA data is cleaned and transformed before model training",
+        sections=[
+            (
+                "Why Pre-Processing Matters",
+                [
+                    "Raw genomic data is never ready to hand directly to a machine-learning model. "
+                    "It contains measurement artefacts, wildly different numerical scales across "
+                    "genes, and quality issues that have nothing to do with biology. Pre-processing "
+                    "is the set of steps that turns messy raw data into a clean, consistently scaled "
+                    "feature matrix that a model can learn from reliably. Getting pre-processing "
+                    "right is often more important than the choice of model architecture — a "
+                    "beautifully designed neural network trained on poorly prepared data will "
+                    "consistently underperform a simpler model trained on clean data.",
+
+                    "The most critical rule in survival analysis pre-processing is the "
+                    "'no-leakage' constraint: any statistics computed from the data (means, "
+                    "variances, gene rankings) must be computed on the training fold only, then "
+                    "applied to the test fold without revision. Violating this rule makes "
+                    "evaluation results overly optimistic — the model appears to perform better "
+                    "than it actually does on new patients.",
+                ],
+            ),
+            (
+                "Step 1 — Primary Tumour Sample Selection",
+                [
+                    "TCGA-BRCA contains expression profiles from both tumour tissue and, in some "
+                    "cases, matched normal tissue from the same patient. Normal tissue samples act "
+                    "as a baseline for understanding what 'healthy' breast cells look like. "
+                    "Because we are modelling tumour-driven prognosis, we keep only primary tumour "
+                    "samples (identified by the '-01' suffix in the TCGA barcode). Normal tissue "
+                    "samples ('-11') are discarded.",
+
+                    "A small number of patients also have multiple primary tumour samples — for "
+                    "example, if a second biopsy was taken after treatment. For these patients, "
+                    "we average the expression values across all their primary samples to produce "
+                    "a single patient-level expression profile. This is the standard approach "
+                    "in TCGA-BRCA survival literature.",
+                ],
+            ),
+            (
+                "Step 2 — Zero Survival-Time Removal (QC addition)",
+                [
+                    "A small number of TCGA-BRCA patients have a recorded Overall Survival time "
+                    "of exactly zero months. These are almost certainly administrative or data-entry "
+                    "artefacts — a patient cannot be enrolled in a study, have tissue collected, "
+                    "have their RNA sequenced, and then die zero months later in any clinically "
+                    "meaningful sense. Keeping these records would inject mathematically "
+                    "degenerate rows into the Cox loss function: the first risk set (all patients "
+                    "'at risk' at time zero) collapses to a single patient, making the log-"
+                    "likelihood numerically extreme. These patients are removed before any "
+                    "further analysis.",
+                ],
+            ),
+            (
+                "Step 3 — PCA-Based Expression Outlier Removal (QC addition)",
+                [
+                    "Even after standard TCGA quality checks, a small number of samples can "
+                    "have systematically aberrant expression profiles — possibly due to RNA "
+                    "degradation during sample storage, sequencing failures, or sample "
+                    "contamination. These 'expression outliers' can distort the gene-selection "
+                    "and normalisation statistics computed in later steps, affecting every "
+                    "patient in the cohort.",
+
+                    "To identify outliers, we first apply a log₂ transformation to the full "
+                    "expression matrix, then run PCA (Principal Component Analysis) to "
+                    "compress the ~20,000-gene space into the 10 largest axes of variation. "
+                    "We then compute, for each axis, how far each patient's score lies from "
+                    "the median of all patients, measured in MADs (median absolute deviations "
+                    "— a robust version of 'standard deviations'). Patients whose score on "
+                    "any axis exceeds 5 MADs from the median are flagged as outliers and "
+                    "removed. The 5-MAD threshold is deliberately conservative — it catches "
+                    "only extreme technical artefacts, not genuine biological extremes.",
+                ],
+            ),
+            (
+                "Step 4 — Survival Time Clipping at 10 Years (QC addition)",
+                [
+                    "A small proportion of TCGA-BRCA patients have follow-up times exceeding "
+                    "10 years (120 months). These very long follow-up observations exert "
+                    "disproportionate leverage during model training: the model can waste "
+                    "capacity trying to rank patients who survived 12 years against those "
+                    "who survived 13 years — a clinically irrelevant distinction supported "
+                    "by very few data points. This is known as the 'long-tail leverage' problem.",
+
+                    "We apply administrative censoring at 120 months: any patient with a "
+                    "follow-up time beyond 10 years is treated as censored at 10 years, "
+                    "regardless of their actual recorded outcome. A patient who died at "
+                    "month 150 becomes 'censored at month 120' — we do not falsify their "
+                    "outcome, we simply stop observing them at the cut-off, exactly as if "
+                    "the study had ended then. This is the standard treatment in TCGA-BRCA "
+                    "survival publications and focuses the model's attention on the "
+                    "clinically actionable 0–10 year horizon.",
+                ],
+            ),
+            (
+                "Step 5 — Log₂ Transformation",
+                [
+                    "Raw RSEM values (the unit in which RNA-seq expression is delivered by "
+                    "cBioPortal) span an enormous dynamic range — a highly expressed gene "
+                    "might have a value of 50,000 while a lowly expressed gene has a value "
+                    "of 0.5. If we handed raw values to a neural network, the few "
+                    "ultra-high-expression genes would numerically dominate every computation, "
+                    "preventing the model from learning from the thousands of moderately "
+                    "expressed genes that collectively carry much of the prognostic signal.",
+
+                    "Taking log₂(RSEM + 1) compresses this range dramatically — a value of "
+                    "50,000 becomes ~15.6, while 0.5 becomes ~0.58 — so that differences at "
+                    "all expression levels are treated more equally. The '+1' prevents "
+                    "log(0) errors for genes with zero reads. All downstream steps (gene "
+                    "selection, normalisation) operate on this log-transformed scale.",
+                ],
+            ),
+            (
+                "Step 6 — Minimum Expression Filter (QC addition)",
+                [
+                    "Of the ~20,000 genes in the RSEM matrix, many are expressed at near-zero "
+                    "levels in almost every patient. These genes add noise to variance "
+                    "calculations because their small non-zero values in a handful of samples "
+                    "can produce an artificially high variance, causing them to be selected "
+                    "as 'informative' features when they are actually measurement noise.",
+
+                    "Before computing gene variance, we filter out genes that are not "
+                    "'expressed' in at least 20% of training patients. A gene is considered "
+                    "expressed in a sample if log₂(RSEM + 1) > 1, corresponding to an RSEM "
+                    "value above 1. This filter is applied to training data only — the "
+                    "selected gene list is then fixed and applied to test data without "
+                    "re-evaluation.",
+                ],
+            ),
+            (
+                "Step 7 — Variance-Based Gene Selection",
+                [
+                    "After filtering the gene universe, we compute the variance of each "
+                    "remaining gene's log-expression across training patients and select "
+                    "the top 500 most variable genes. High-variance genes are those that "
+                    "differ most between patients — these are the genes most likely to "
+                    "carry patient-specific prognostic information. Low-variance 'housekeeping' "
+                    "genes (like ribosomal proteins) are active at roughly the same level in "
+                    "every patient and contribute nothing to distinguishing high-risk from "
+                    "low-risk individuals.",
+
+                    "The 500-gene count is a hyperparameter chosen to balance information "
+                    "content against model complexity given the ~900 training patients "
+                    "available per fold. Selecting too many genes risks overfitting; "
+                    "selecting too few loses signal. The threshold k=500 is consistent with "
+                    "published TCGA-BRCA survival baselines.",
+                ],
+            ),
+            (
+                "Step 8 — Robust Z-Score Normalisation (improved from mean/std)",
+                [
+                    "After gene selection, each gene's values are standardised so they are "
+                    "on a comparable numerical scale for the neural network. Previously this "
+                    "used standard z-scoring (subtract the mean, divide by the standard "
+                    "deviation). We now use robust z-scoring: subtract the median, divide "
+                    "by the MAD (median absolute deviation).",
+
+                    "The improvement matters because both the mean and the standard deviation "
+                    "are sensitive to outlier patients. If even one patient has an extreme "
+                    "expression value for a gene, the mean is pulled toward that patient and "
+                    "the standard deviation is inflated — causing every other patient's "
+                    "normalised value to be slightly wrong. The median and MAD are "
+                    "'breakdown-resistant': up to half the patients in a fold would need to "
+                    "be outliers before the centre or scale estimates become meaningless. "
+                    "This is especially valuable on small training folds (~720 patients) "
+                    "where a single technical artefact could otherwise bias the entire fold's "
+                    "normalisation.",
+
+                    "All statistics (median, MAD) are computed on the training fold only and "
+                    "applied to the test fold — preserving the no-leakage guarantee that "
+                    "makes our C-index estimates trustworthy.",
+                ],
+            ),
+        ],
+    )
+    print("[explore] ✓ Preprocessing page: data pre-processing pipeline")
+
+
 def page_mutations(pdf: PdfPages, data_dir: Path) -> None:
     """Somatic mutation landscape: top genes and variant class breakdown."""
     print("[explore]   Loading mutations (~130k rows) …")
@@ -1049,6 +1232,7 @@ def main(argv: list[str] | None = None) -> int:
     with PdfPages(out_pdf) as pdf:
         page_project_overview(pdf)
         page_design_choices(pdf)
+        page_data_preprocessing(pdf)
         page_inventory(pdf, data_dir)
         page_demographics(pdf, clin)
         page_cancer_characteristics(pdf, clin, samp)

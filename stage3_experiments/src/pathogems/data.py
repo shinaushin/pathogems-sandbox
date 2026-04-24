@@ -2,9 +2,9 @@
 
 Design goals:
     1. **No preprocessing leakage between folds.** Feature selection (top-k
-       most variable genes), log transform, and z-score standardization are
-       fit on the *training* fold only, then applied to train and test. This
-       is the single biggest correctness requirement for any CV-reported
+       most variable genes), log transform, and robust z-score normalization
+       are fit on the *training* fold only, then applied to train and test.
+       This is the single biggest correctness requirement for any CV-reported
        survival metric and the reason we expose a `Preprocessor` class with
        a scikit-learn-style `fit` / `transform` split rather than a single
        free-function pipeline.
@@ -19,6 +19,17 @@ Design goals:
        clinical TSVs have four comment-prefixed metadata lines before the
        real header; `pandas.read_csv(comment='#')` handles that uniformly.
 
+Cohort-level QC pipeline (apply in this order before cv_splits):
+    1. assemble_cohort()           — raw join of expression + clinical
+    2. filter_zero_time_patients() — drop OS_MONTHS == 0 (data artefacts)
+    3. remove_outlier_samples()    — PCA-based MAD outlier removal
+    4. clip_survival_time()        — administrative censoring at max_months
+
+Per-fold preprocessing (inside build_fold_tensors, fit on training fold only):
+    5. Minimum-expression filter   — keep genes expressed in ≥ fraction of samples
+    6. Variance-based gene selection — top-k most variable genes (log scale)
+    7. Robust z-score              — (x − median) / MAD, per gene, per fold
+
 Scope: this module only handles omics-only inputs for ADR 0001's baseline.
 WSI feature loading will arrive in a separate module when Stage 2's WSI
 pipeline is ready, so this file never grows conditional multimodal paths.
@@ -26,13 +37,21 @@ pipeline is ready, so this file never grows conditional multimodal paths.
 
 from __future__ import annotations
 
+import logging
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Self
+
+try:
+    from typing import Self
+except ImportError:  # Python < 3.11
+    from typing_extensions import Self
 
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
+
+log = logging.getLogger(__name__)
 
 # Clinical column names as published by cBioPortal PanCancer Atlas 2018.
 # These are hard-coded intentionally: they are contracts with an external
@@ -206,6 +225,10 @@ def assemble_cohort(
         3. Join to clinical on patient id.
         4. Drop patients missing either `OS_STATUS` or `OS_MONTHS`.
         5. Map `OS_STATUS` strings to 0/1 and `OS_MONTHS` to float.
+
+    Call the cohort-level QC helpers after this function to apply further
+    quality filters before CV splitting:
+        filter_zero_time_patients() → remove_outlier_samples() → clip_survival_time()
     """
     expr = load_expression_matrix(expression_path)
     patient_clin = load_clinical_patient(clinical_patient_path)
@@ -243,11 +266,193 @@ def assemble_cohort(
 
 
 # --------------------------------------------------------------------------- #
+# Cohort-level QC helpers (apply before cv_splits)
+# --------------------------------------------------------------------------- #
+def filter_zero_time_patients(cohort: SurvivalCohort) -> SurvivalCohort:
+    """Remove patients whose recorded survival time is zero (QC suggestion #2).
+
+    OS_MONTHS == 0 is a known artefact in TCGA data — typically caused by
+    administrative rounding or data-entry errors rather than patients who
+    genuinely survived zero months. These rows can destabilise the Cox
+    partial likelihood (which computes risk sets at each observed death time;
+    time-zero events collapse the first risk set to a single patient, making
+    the log-likelihood undefined or numerically extreme).
+
+    Returns a new SurvivalCohort with zero-time patients removed.
+    """
+    mask = cohort.time > 0.0
+    n_removed = int((~mask).sum())
+    if n_removed > 0:
+        log.info(
+            "filter_zero_time_patients: removed %d patient(s) with OS_MONTHS == 0 "
+            "(data artefacts, not genuine zero-month survivors). %d remain.",
+            n_removed,
+            int(mask.sum()),
+        )
+    idx = cohort.expression.index[mask]
+    return SurvivalCohort(
+        expression=cohort.expression.loc[idx],
+        time=cohort.time.loc[idx],
+        event=cohort.event.loc[idx],
+        study_id=cohort.study_id,
+    )
+
+
+def remove_outlier_samples(
+    cohort: SurvivalCohort,
+    n_components: int = 10,
+    mad_threshold: float = 5.0,
+) -> SurvivalCohort:
+    """Flag and remove expression outlier patients using PCA + MAD filtering (QC suggestion #1).
+
+    Algorithm:
+        1. Log-transform the full expression matrix: log₂(RSEM + 1).
+        2. Fit PCA on all patients, keeping `n_components` principal components.
+        3. For each PC, compute the median and MAD (median absolute deviation)
+           of the patient scores across that component.
+        4. A patient is flagged as an outlier if *any* of their PC scores lies
+           more than `mad_threshold` MADs from the PC median.
+        5. Flagged patients are removed from the cohort.
+
+    Why PCA + MAD rather than raw expression + z-score:
+        Raw high-dimensional expression distances are dominated by a handful
+        of ultra-high-variance genes, which can mask globally aberrant samples.
+        Projecting into PCA space first compresses the information into a small
+        number of orthogonal axes and normalises the influence of individual
+        genes. MAD (rather than standard deviation) is then used because it is
+        itself robust to the outliers we are trying to detect — standard
+        deviation is pulled upward by outlier values, which would lower the
+        z-score of the very samples we want to flag.
+
+    Args:
+        cohort: Input cohort.
+        n_components: Number of PCA components to inspect. Default 10 is
+            sufficient to capture the major axes of expression variation in
+            TCGA-BRCA while remaining sensitive to global outliers.
+        mad_threshold: Number of MADs beyond which a sample is flagged.
+            5.0 is deliberately conservative — equivalent to roughly ±7σ
+            for Gaussian data — to avoid removing genuine biological
+            extremes. Only clear technical artefacts should be caught.
+
+    Returns:
+        New SurvivalCohort with outlier patients removed.
+    """
+    log_expr = np.log2(cohort.expression.to_numpy(dtype=np.float64) + 1.0)
+    n_patients, n_genes = log_expr.shape
+    n_comp = min(n_components, n_patients - 1, n_genes)
+
+    # Compact PCA via truncated SVD (no sklearn dependency).
+    # Centre the matrix, then project onto the top n_comp right singular vectors.
+    X_c = log_expr - log_expr.mean(axis=0)
+    _, _, Vt = np.linalg.svd(X_c, full_matrices=False)
+    scores = X_c @ Vt[:n_comp].T  # (n_patients, n_comp)
+
+    # Per-PC robust statistics.
+    pc_medians = np.median(scores, axis=0)  # (n_comp,)
+    pc_mads = np.median(np.abs(scores - pc_medians), axis=0)  # (n_comp,)
+    # Guard against zero-MAD PCs (e.g. a constant PC due to rank deficiency).
+    pc_mads = np.where(pc_mads < 1e-8, 1.0, pc_mads)
+
+    # Flag patients with any PC score > mad_threshold MADs from the median.
+    robust_z = np.abs(scores - pc_medians) / pc_mads  # (n_patients, n_comp)
+    is_outlier = (robust_z > mad_threshold).any(axis=1)
+    n_outliers = int(is_outlier.sum())
+
+    if n_outliers > 0:
+        outlier_ids = cohort.expression.index[is_outlier].tolist()
+        log.info(
+            "remove_outlier_samples: flagged %d patient(s) with a PC score "
+            "> %.1f MADs from the median (PCA components 1–%d). "
+            "Removed: %s. %d remain.",
+            n_outliers,
+            mad_threshold,
+            n_comp,
+            outlier_ids,
+            n_patients - n_outliers,
+        )
+    else:
+        log.info(
+            "remove_outlier_samples: no outlier patients detected "
+            "(threshold=%.1f MADs, %d components). All %d patients retained.",
+            mad_threshold,
+            n_comp,
+            n_patients,
+        )
+
+    keep_idx = cohort.expression.index[~is_outlier]
+    return SurvivalCohort(
+        expression=cohort.expression.loc[keep_idx],
+        time=cohort.time.loc[keep_idx],
+        event=cohort.event.loc[keep_idx],
+        study_id=cohort.study_id,
+    )
+
+
+def clip_survival_time(
+    cohort: SurvivalCohort,
+    max_months: float = 120.0,
+) -> SurvivalCohort:
+    """Administratively censor patients whose follow-up exceeds max_months (QC suggestion #5).
+
+    Why clip at all:
+        In TCGA-BRCA, a small fraction of patients have follow-up times
+        exceeding 10 years (120 months). These long-tail observations exert
+        disproportionate leverage on neural network training — the model can
+        dedicate capacity to distinguishing patients at 130 months from patients
+        at 140 months, which is clinically irrelevant and statistically noisy
+        (very few patients survive that long, so the estimates are unreliable).
+        Clipping at 10 years is standard in TCGA-BRCA survival papers and focuses
+        the model's attention on clinically actionable timeframes.
+
+    How censoring works:
+        A patient whose death was observed at month 150 is *not* treated as if
+        they survived 120 months — that would be falsifying data. Instead, we
+        convert them to a censored observation at 120 months: their event
+        indicator becomes 0 (we stop observing them at the cut-off, just as if
+        the study had ended then). This is proper administrative censoring and
+        is consistent with how Cox models handle right-censoring.
+
+    Args:
+        cohort: Input cohort.
+        max_months: Upper limit on follow-up time. Default 120 (10 years).
+
+    Returns:
+        New SurvivalCohort with times and events adjusted.
+    """
+    time = cohort.time.copy()
+    event = cohort.event.copy()
+
+    beyond = time > max_months
+    n_clipped = int(beyond.sum())
+    n_event_converted = int((beyond & (event == 1)).sum())
+
+    if n_clipped > 0:
+        log.info(
+            "clip_survival_time: clipped %d patient(s) with OS_MONTHS > %.0f to %.0f "
+            "months (administrative censoring). %d of those had event=1 converted to 0.",
+            n_clipped,
+            max_months,
+            max_months,
+            n_event_converted,
+        )
+
+    event.loc[beyond] = 0
+    time.loc[beyond] = max_months
+
+    return SurvivalCohort(
+        expression=cohort.expression,
+        time=time,
+        event=event,
+        study_id=cohort.study_id,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Preprocessing (fit-on-train-only)
 # --------------------------------------------------------------------------- #
 @dataclass(slots=True)
 class Preprocessor:
-    """Top-k variable-gene selection + log transform + per-gene z-score.
+    """Min-expression filter + top-k variable-gene selection + robust z-score.
 
     `fit` must be called on training data only. `transform` then applies
     the *training-fold* statistics to arbitrary data. Calling `transform`
@@ -256,49 +461,108 @@ class Preprocessor:
     This is the mechanism that prevents preprocessing leakage between CV
     folds (ADR 0004). Every test in tests/test_data.py that touches
     preprocessing checks this property.
+
+    Per-fold steps (all fit on training data only):
+
+    Step 1 — Minimum expression filter (suggestion #3):
+        Genes expressed in fewer than `min_expressed_fraction` of training
+        samples (where "expressed" means log₂(RSEM + 1) > 1, i.e. RSEM > 1)
+        are excluded from the candidate gene universe before variance-based
+        selection. These genes are near-zero across most patients; they add
+        noise to variance calculations and tend to select uninformative
+        low-expression genes that happen to be non-zero in a small subset.
+
+    Step 2 — Log transform + variance-based gene selection:
+        Among expressed genes, variance is computed on log₂(RSEM + 1) and
+        the top-k most variable genes are selected. Log scale is used because
+        raw RSEM variance is dominated by ultra-high-expression housekeeping
+        genes, ending up selecting the same uninformative features every fold.
+
+    Step 3 — Robust z-score (suggestion #4):
+        Each selected gene is centred by its training-fold median and scaled by
+        its training-fold MAD (median absolute deviation). Compared to standard
+        mean/std z-scoring, median/MAD is robust to outlier samples within a
+        fold: a single patient with an aberrant expression value cannot pull the
+        centre or scale estimate far from the bulk of the data.
     """
 
     top_k: int
+    min_expressed_fraction: float = 0.20
     _selected_genes: list[str] | None = None
-    _mean: np.ndarray | None = None  # shape (top_k,), in selected-gene order
-    _std: np.ndarray | None = None
+    _center: np.ndarray | None = None  # shape (top_k,) — training-fold median per gene
+    _scale: np.ndarray | None = None   # shape (top_k,) — training-fold MAD per gene
 
     def fit(self, expression: pd.DataFrame) -> Self:
-        """Choose the top-k most variable genes on log-transformed expression.
+        """Fit min-expression filter, gene selector, and robust scaler on training data.
 
-        We compute gene variance on `log2(x + 1)` (not on raw RSEM) because
-        raw RSEM variance is dominated by a handful of ultra-high-expression
-        housekeeping genes and ends up selecting the same uninformative
-        features every time.
+        Args:
+            expression: DataFrame of raw RSEM values, shape (n_train, n_genes).
+
+        Returns:
+            self (for chaining: Preprocessor(top_k=500).fit(expr_train))
         """
-        log_expr = np.log2(expression.to_numpy(dtype=np.float64) + 1.0)
-        gene_var = log_expr.var(axis=0)  # shape (n_genes,)
-        n_genes = log_expr.shape[1]
-        if self.top_k > n_genes:
-            raise ValueError(f"top_k={self.top_k} exceeds available genes ({n_genes}).")
-        top_idx = np.argsort(gene_var)[-self.top_k :]
-        # argsort returns ascending; flip so the most variable gene is first.
-        top_idx = top_idx[::-1]
-        self._selected_genes = [str(g) for g in expression.columns[top_idx]]
+        raw = expression.to_numpy(dtype=np.float64)
+        log_expr = np.log2(raw + 1.0)  # shape (n_train, n_genes)
 
-        # Compute per-gene mean / std on the selected genes, again on log scale.
-        selected_log = log_expr[:, top_idx]
-        self._mean = selected_log.mean(axis=0)
-        # Guard against zero-variance genes after the selection step (can't
-        # happen with this selector, but a future selector might allow it).
-        self._std = selected_log.std(axis=0)
-        self._std = np.where(self._std < 1e-8, 1.0, self._std)
+        # ---- Step 1: Minimum expression filter ----
+        # A gene is "expressed" in a sample if log₂(RSEM+1) > 1, i.e. RSEM > 1.
+        expressed_frac = (log_expr > 1.0).mean(axis=0)  # shape (n_genes,)
+        expressed_mask = expressed_frac >= self.min_expressed_fraction
+        n_expressed = int(expressed_mask.sum())
+        n_total = log_expr.shape[1]
+
+        if n_expressed == 0:
+            raise ValueError(
+                f"No genes passed the minimum-expression filter "
+                f"(min_expressed_fraction={self.min_expressed_fraction}). "
+                f"Check that the expression matrix contains raw RSEM values."
+            )
+        if n_expressed < self.top_k:
+            raise ValueError(
+                f"top_k={self.top_k} exceeds available genes after minimum-expression "
+                f"filtering ({n_expressed} genes passed out of {n_total} total)."
+            )
+
+        log_expressed = log_expr[:, expressed_mask]  # (n_train, n_expressed)
+        expressed_gene_names = expression.columns[expressed_mask]
+
+        # ---- Step 2: Variance-based gene selection ----
+        gene_var = log_expressed.var(axis=0)  # shape (n_expressed,)
+        top_idx = np.argsort(gene_var)[-self.top_k:][::-1]  # descending variance
+        self._selected_genes = [str(g) for g in expressed_gene_names[top_idx]]
+
+        # ---- Step 3: Robust z-score statistics (median / MAD) ----
+        selected_log = log_expressed[:, top_idx]  # (n_train, top_k)
+        self._center = np.median(selected_log, axis=0)  # training median per gene
+        abs_dev = np.abs(selected_log - self._center)
+        self._scale = np.median(abs_dev, axis=0)        # training MAD per gene
+        # Guard against zero-MAD genes (fully constant expression in training fold).
+        self._scale = np.where(self._scale < 1e-8, 1.0, self._scale)
+
         return self
 
     def transform(self, expression: pd.DataFrame) -> np.ndarray:
-        if self._selected_genes is None or self._mean is None or self._std is None:
+        """Apply training-fold preprocessing to expression data.
+
+        Selects the training-fold genes, log-transforms, and applies the
+        training-fold median/MAD normalization.
+
+        Args:
+            expression: DataFrame of raw RSEM values. Must contain all genes
+                in `selected_genes` as columns (KeyError otherwise — loud
+                beats silent in a survival pipeline).
+
+        Returns:
+            Float32 array of shape (n_samples, top_k), robust z-scored.
+        """
+        if self._selected_genes is None or self._center is None or self._scale is None:
             raise RuntimeError("Preprocessor.transform called before fit().")
         # Select the training-fold genes. Missing genes -> KeyError rather
         # than silently filling zeros; loudness beats silence in a survival
         # pipeline.
         selected = expression[self._selected_genes].to_numpy(dtype=np.float64)
         selected = np.log2(selected + 1.0)
-        return ((selected - self._mean) / self._std).astype(np.float32)
+        return ((selected - self._center) / self._scale).astype(np.float32)
 
     @property
     def selected_genes(self) -> list[str]:

@@ -19,10 +19,13 @@ from pathogems.data import (
     SurvivalCohort,
     assemble_cohort,
     build_fold_tensors,
+    clip_survival_time,
     cv_splits,
+    filter_zero_time_patients,
     load_clinical_patient,
     load_clinical_sample,
     load_expression_matrix,
+    remove_outlier_samples,
 )
 
 
@@ -198,13 +201,15 @@ class TestPreprocessor:
         with pytest.raises(RuntimeError, match="before fit"):
             Preprocessor(top_k=3).transform(cohort.expression)
 
-    def test_transform_is_zero_mean_unit_var_on_training_data(self) -> None:
+    def test_transform_is_zero_median_unit_mad_on_training_data(self) -> None:
         cohort = _make_cohort()
         pre = Preprocessor(top_k=10).fit(cohort.expression)
         x = pre.transform(cohort.expression)
-        # Training data transformed with training statistics -> zero mean, unit std per column.
-        np.testing.assert_allclose(x.mean(axis=0), 0.0, atol=1e-5)
-        np.testing.assert_allclose(x.std(axis=0), 1.0, atol=1e-5)
+        # Training data transformed with training statistics -> zero median, unit MAD per column.
+        # (Preprocessor uses robust z-score: centre = median, scale = MAD.)
+        np.testing.assert_allclose(np.median(x, axis=0), 0.0, atol=1e-5)
+        # MAD(x) = median(|x - median(x)|) = median(|x|) when median(x)=0. Should equal 1.0.
+        np.testing.assert_allclose(np.median(np.abs(x), axis=0), 1.0, atol=1e-5)
 
     def test_preprocessor_no_leakage(self) -> None:
         """Fit on train, apply to test -> test statistics NOT centered by design.
@@ -221,17 +226,38 @@ class TestPreprocessor:
         x_train = pre.transform(train)
         x_test = pre.transform(test)
 
-        # Train is centered; test is NOT exactly centered (it was standardized
-        # with train's mean/std, not its own).
-        np.testing.assert_allclose(x_train.mean(axis=0), 0.0, atol=1e-5)
+        # Train is median-centered; test is NOT exactly centered (it was standardized
+        # with train's median/MAD, not its own).
+        np.testing.assert_allclose(np.median(x_train, axis=0), 0.0, atol=1e-5)
         assert (
-            np.max(np.abs(x_test.mean(axis=0))) > 1e-3
-        ), "Test set appears centered — preprocessor is leaking test-fold statistics."
+            np.max(np.abs(np.median(x_test, axis=0))) > 1e-3
+        ), "Test set appears median-centered — preprocessor is leaking test-fold statistics."
 
     def test_top_k_exceeds_genes_raises(self) -> None:
         cohort = _make_cohort(n_genes=5)
         with pytest.raises(ValueError, match="exceeds available genes"):
             Preprocessor(top_k=10).fit(cohort.expression)
+
+    def test_min_expressed_fraction_filters_gene_universe(self) -> None:
+        """Genes expressed in < min_expressed_fraction of samples are excluded."""
+        rng = np.random.default_rng(42)
+        n_patients, n_genes = 50, 30
+        patients = [f"P{i:03d}" for i in range(n_patients)]
+        genes = [f"G{i:03d}" for i in range(n_genes)]
+        # Make the first 10 genes near-zero (will fail min-expression filter).
+        values = rng.uniform(0, 500, size=(n_patients, n_genes))
+        values[:, :10] = 0.1  # log2(0.1 + 1) ≈ 0.14 < 1 → not expressed
+        expr = pd.DataFrame(values, index=patients, columns=genes)
+        event = pd.Series(rng.binomial(1, 0.4, n_patients), index=patients)
+        time = pd.Series(rng.uniform(1, 120, n_patients), index=patients)
+        cohort = SurvivalCohort(expression=expr, time=time, event=event, study_id="test")
+
+        # With top_k=5 and only 20 expressed genes, selection should still work.
+        pre = Preprocessor(top_k=5, min_expressed_fraction=0.5).fit(cohort.expression)
+        assert len(pre.selected_genes) == 5
+        # All selected genes should come from the expressed set (G010–G029).
+        expressed_gene_set = set(genes[10:])
+        assert all(g in expressed_gene_set for g in pre.selected_genes)
 
 
 # --------------------------------------------------------------------------- #
@@ -290,3 +316,110 @@ class TestBuildFoldTensors:
         assert ft.event_train.shape == (len(train_idx),)
         assert set(np.unique(ft.event_train).tolist()).issubset({0.0, 1.0})
         assert len(ft.selected_genes) == 10
+
+
+# --------------------------------------------------------------------------- #
+# Cohort-level QC helpers
+# --------------------------------------------------------------------------- #
+class TestFilterZeroTimePatients:
+    def test_removes_zero_time_rows(self) -> None:
+        cohort = _make_cohort(n_patients=20)
+        # Inject two zero-time patients by mutating a copy.
+        time = cohort.time.copy()
+        time.iloc[0] = 0.0
+        time.iloc[5] = 0.0
+        cohort_with_zeros = SurvivalCohort(
+            expression=cohort.expression,
+            time=time,
+            event=cohort.event,
+            study_id="test",
+        )
+        filtered = filter_zero_time_patients(cohort_with_zeros)
+        assert filtered.n_patients == 18
+        assert (filtered.time > 0).all()
+
+    def test_no_op_when_no_zero_times(self) -> None:
+        cohort = _make_cohort(n_patients=30)
+        # _make_cohort generates times in [1, 120], so none are zero.
+        filtered = filter_zero_time_patients(cohort)
+        assert filtered.n_patients == cohort.n_patients
+
+    def test_index_alignment_preserved(self) -> None:
+        cohort = _make_cohort(n_patients=20)
+        time = cohort.time.copy()
+        time.iloc[3] = 0.0
+        cohort_z = SurvivalCohort(
+            expression=cohort.expression, time=time,
+            event=cohort.event, study_id="test",
+        )
+        filtered = filter_zero_time_patients(cohort_z)
+        assert filtered.expression.index.equals(filtered.time.index)
+        assert filtered.time.index.equals(filtered.event.index)
+
+
+class TestRemoveOutlierSamples:
+    def test_removes_injected_outlier(self) -> None:
+        cohort = _make_cohort(n_patients=50, n_genes=30)
+        # Inject one extreme outlier by setting all genes to 100× the max.
+        expr = cohort.expression.copy()
+        expr.iloc[0] = expr.values.max() * 100
+        cohort_out = SurvivalCohort(
+            expression=expr, time=cohort.time,
+            event=cohort.event, study_id="test",
+        )
+        # Use a high threshold (15 MADs) so synthetic random data doesn't
+        # produce false positives — only the deliberate 100× outlier is flagged.
+        filtered = remove_outlier_samples(cohort_out, n_components=5, mad_threshold=15.0)
+        assert filtered.n_patients < cohort_out.n_patients
+        # The injected outlier (first patient) should have been removed.
+        assert cohort_out.expression.index[0] not in filtered.expression.index
+
+    def test_retains_all_clean_patients(self) -> None:
+        cohort = _make_cohort(n_patients=50, n_genes=30, seed=7)
+        # Use a very conservative threshold — only extreme technical artefacts (>15 MADs)
+        # should be flagged. Synthetic uniform data should have no such outliers.
+        filtered = remove_outlier_samples(cohort, n_components=5, mad_threshold=15.0)
+        assert filtered.n_patients == cohort.n_patients
+
+    def test_index_alignment_preserved(self) -> None:
+        cohort = _make_cohort(n_patients=40, n_genes=20)
+        filtered = remove_outlier_samples(cohort)
+        assert filtered.expression.index.equals(filtered.time.index)
+
+
+class TestClipSurvivalTime:
+    def test_clips_times_and_converts_events(self) -> None:
+        cohort = _make_cohort(n_patients=30)
+        # Inject patients with time > 120, one dead (event=1) one censored (event=0).
+        time = cohort.time.copy()
+        event = cohort.event.copy()
+        time.iloc[0] = 150.0
+        event.iloc[0] = 1  # deceased — should become censored at 120
+        time.iloc[1] = 130.0
+        event.iloc[1] = 0  # already censored — stays censored
+        cohort_long = SurvivalCohort(
+            expression=cohort.expression, time=time,
+            event=event, study_id="test",
+        )
+        clipped = clip_survival_time(cohort_long, max_months=120.0)
+        assert (clipped.time <= 120.0).all()
+        # Patient 0: was event=1 at 150 → now event=0 at 120.
+        assert clipped.time.iloc[0] == 120.0
+        assert clipped.event.iloc[0] == 0
+        # Patient 1: was event=0 at 130 → now event=0 at 120.
+        assert clipped.time.iloc[1] == 120.0
+        assert clipped.event.iloc[1] == 0
+
+    def test_no_op_when_all_within_limit(self) -> None:
+        cohort = _make_cohort(n_patients=20)
+        # _make_cohort uses time in [1, 120]; clip at 120 should be a no-op.
+        clipped = clip_survival_time(cohort, max_months=120.0)
+        # Times should be unchanged (max is exactly 120, which is not clipped).
+        pd.testing.assert_series_equal(clipped.time, cohort.time)
+        pd.testing.assert_series_equal(clipped.event, cohort.event)
+
+    def test_event_rate_is_non_increasing_after_clip(self) -> None:
+        """Clipping can only reduce or preserve event rate (by converting events to censored)."""
+        cohort = _make_cohort(n_patients=50, seed=3)
+        clipped = clip_survival_time(cohort, max_months=60.0)
+        assert clipped.event_rate <= cohort.event_rate + 1e-9

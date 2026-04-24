@@ -32,8 +32,14 @@ from pathlib import Path
 # Config keys excluded from the diff (infrastructure / metadata, not science)
 # ---------------------------------------------------------------------------
 _EXCLUDED_KEYS = {
-    "name", "cohort", "seed", "study_data_dir", "notes",
-    "config_version", "enable_mlflow", "mlflow_tracking_uri",
+    "name",
+    "cohort",
+    "seed",
+    "study_data_dir",
+    "notes",
+    "config_version",
+    "enable_mlflow",
+    "mlflow_tracking_uri",
     "mlflow_experiment_name",
 }
 
@@ -124,7 +130,7 @@ def _html_summary_row(run: dict, baseline_cfg: dict | None, rank: int) -> str:
         if diffs:
             diff_cells = "".join(
                 f'<span class="diff-pill">{html.escape(k)}: '
-                f'{html.escape(_fmt(bv))} → {html.escape(_fmt(ov))}</span>'
+                f"{html.escape(_fmt(bv))} → {html.escape(_fmt(ov))}</span>"
                 for k, bv, ov in diffs
             )
         else:
@@ -202,12 +208,8 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
         col = fold_colors[fi % len(fold_colors)]
         train = curves.get("train", [])
         val = curves.get("val", [])
-        tr_pts = "[" + ",".join(
-            f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)
-        ) + "]"
-        vl_pts = "[" + ",".join(
-            f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)
-        ) + "]"
+        tr_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)) + "]"
+        vl_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)) + "]"
         datasets_js += f"""
   {{label:'F{fi} train',data:{tr_pts},borderColor:'{col}',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3}},
   {{label:'F{fi} val',  data:{vl_pts},borderColor:'{col}',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3}},"""
@@ -270,15 +272,14 @@ def _build_comparison_chart_js(runs: list[dict]) -> str:
     """JS for the top-level C-index bar chart comparing all experiments."""
     names = [json.dumps(r.get("run_name", r["_path"])) for r in runs]
     means = [r.get("metrics", {}).get("c_index_mean") or 0 for r in runs]
-    stds  = [r.get("metrics", {}).get("c_index_std") or 0 for r in runs]
+    stds = [r.get("metrics", {}).get("c_index_std") or 0 for r in runs]
     bar_colors = [
-        "#1d9e75" if (m >= BENCH_LOW) else ("#3266ad" if m >= 0.50 else "#d85a30")
-        for m in means
+        "#1d9e75" if (m >= BENCH_LOW) else ("#3266ad" if m >= 0.50 else "#d85a30") for m in means
     ]
 
     names_js = "[" + ",".join(names) + "]"
     means_js = "[" + ",".join(f"{v:.6f}" for v in means) + "]"
-    stds_js  = "[" + ",".join(f"{v:.6f}" for v in stds) + "]"
+    stds_js = "[" + ",".join(f"{v:.6f}" for v in stds) + "]"
     colors_js = "[" + ",".join(f'"{c}"' for c in bar_colors) + "]"
 
     n = len(runs)
@@ -376,20 +377,14 @@ def generate_report(logs_dir: Path, out_path: Path) -> None:
         print(f"[report] No run logs found in {logs_dir}. Nothing to report.")
         return
 
-    baseline_run = next(
-        (r for r in runs if r.get("run_name") == BASELINE_NAME), runs[0]
-    )
+    baseline_run = next((r for r in runs if r.get("run_name") == BASELINE_NAME), runs[0])
     baseline_cfg = baseline_run.get("config", {})
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     n = len(runs)
 
-    summary_rows = "".join(
-        _html_summary_row(r, baseline_cfg, i) for i, r in enumerate(runs)
-    )
-    exp_sections = "".join(
-        _html_experiment_section(r, baseline_cfg, i) for i, r in enumerate(runs)
-    )
+    summary_rows = "".join(_html_summary_row(r, baseline_cfg, i) for i, r in enumerate(runs))
+    exp_sections = "".join(_html_experiment_section(r, baseline_cfg, i) for i, r in enumerate(runs))
     comparison_chart = _build_comparison_chart_js(runs)
 
     html_doc = f"""<!DOCTYPE html>
@@ -579,15 +574,18 @@ code {{ font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument(
-        "--logs-dir", type=Path,
+        "--logs-dir",
+        type=Path,
         default=Path("stage3_experiments/logs"),
         help="Directory containing run-log JSON files. Default: stage3_experiments/logs",
     )
     p.add_argument(
-        "--out", type=Path,
+        "--out",
+        type=Path,
         default=Path("stage3_experiments/reports/experiment_report.html"),
         help="Output HTML path. Default: stage3_experiments/reports/experiment_report.html",
     )

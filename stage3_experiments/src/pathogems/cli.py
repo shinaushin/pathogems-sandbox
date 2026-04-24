@@ -23,7 +23,12 @@ from pathlib import Path
 import torch
 
 from .config import ExperimentConfig
-from .data import assemble_cohort
+from .data import (
+    assemble_cohort,
+    clip_survival_time,
+    filter_zero_time_patients,
+    remove_outlier_samples,
+)
 from .run_log import write_run_log
 from .tracking import track_run
 from .train import cross_validate
@@ -151,10 +156,21 @@ def main(argv: list[str] | None = None) -> int:
                 study_id=config.cohort,
             )
             log.info(
-                "Cohort %s: %d patients, %d genes, event rate %.2f%%",
+                "Cohort assembled — %s: %d patients, %d genes, event rate %.2f%%",
                 config.cohort,
                 cohort.n_patients,
                 cohort.n_genes,
+                cohort.event_rate * 100,
+            )
+
+            # Cohort-level QC (applied before CV splitting so no fold sees
+            # patients that were removed based on global properties).
+            cohort = filter_zero_time_patients(cohort)
+            cohort = remove_outlier_samples(cohort)
+            cohort = clip_survival_time(cohort, max_months=120.0)
+            log.info(
+                "Post-QC cohort: %d patients, event rate %.2f%%",
+                cohort.n_patients,
                 cohort.event_rate * 100,
             )
             tracker.log_metric("cohort_n_patients", float(cohort.n_patients))
