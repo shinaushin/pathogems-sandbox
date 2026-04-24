@@ -102,6 +102,21 @@ class ExperimentConfig:
     # --- evaluation ---
     n_folds: int = 5
 
+    # --- pathway-informed model options ---
+    # Used by the `pathway_mlp` model. Ignored by flat MLP and linear Cox.
+    # `pathway_db` selects the MSigDB gene-set collection ("hallmark" or
+    # "c2_kegg"). `pathway_cache_dir` is the local cache for GMT files;
+    # None defaults to ~/.pathogems/gene_sets/.
+    pathway_db: str = "hallmark"
+    pathway_cache_dir: str | None = None
+
+    # --- attention model options ---
+    # Used by the `gene_attention` model. Ignored by other architectures.
+    # `attn_d_model` must be divisible by `attn_n_heads`.
+    attn_d_model: int = 64
+    attn_n_heads: int = 4
+    attn_n_layers: int = 2
+
     # --- experiment tracking (ADR 0008) ---
     # MLflow is optional: leaving `enable_mlflow=False` keeps the harness
     # fully self-contained (JSON run log is still the source of truth for

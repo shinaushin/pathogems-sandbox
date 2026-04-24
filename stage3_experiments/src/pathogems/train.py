@@ -164,7 +164,9 @@ def train_one_fold(
         drop_last=False,
     )
 
-    model = MODEL_REGISTRY.get(config.model)(fold.x_train.shape[1], config).to(device)
+    model = MODEL_REGISTRY.get(config.model)(
+        fold.x_train.shape[1], config, fold.selected_genes
+    ).to(device)
     optimizer = OPTIMIZER_REGISTRY.get(config.optimizer)(model.parameters(), config)
     loss_fn = LOSS_REGISTRY.get(config.loss)
 
