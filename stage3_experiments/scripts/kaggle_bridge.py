@@ -491,10 +491,56 @@ def fetch_outputs(
     return files
 
 
+def _print_fold_summary(log_path: Path) -> None:
+    """Parse a run log JSON and print a per-fold results table locally.
+
+    Derives epochs trained and best epoch from the val loss curve length
+    and argmin respectively — the same values the training loop tracks —
+    so no extra fields are needed beyond what the existing schema stores.
+
+    Silently skips if the file is missing, malformed, or has no metrics
+    (e.g. a ``status="failed"`` log).
+    """
+    try:
+        data = json.loads(log_path.read_text())
+    except Exception:
+        return
+
+    metrics = data.get("metrics", {})
+    c_folds: list[float] = metrics.get("c_index_folds", [])
+    loss_folds: list[float] = metrics.get("final_loss_folds", [])
+    curves: dict = metrics.get("loss_curves", {})
+
+    if not c_folds:
+        return  # failed run or empty metrics — nothing to show
+
+    n = len(c_folds)
+    print()
+    print(f"  {'fold':>4}  {'C-index':>8}  {'val_loss':>9}  {'epochs':>7}  {'best@':>6}")
+    print(f"  {'-'*4}  {'-'*8}  {'-'*9}  {'-'*7}  {'-'*6}")
+
+    for i in range(n):
+        c = c_folds[i]
+        loss = loss_folds[i] if i < len(loss_folds) else float("nan")
+        val_curve: list[float] = curves.get(str(i), {}).get("val", [])
+        epochs = len(val_curve)
+        best = int(min(range(epochs), key=lambda e: val_curve[e])) + 1 if epochs else 0
+        print(
+            f"  {i + 1:>4}  {c:>8.4f}  {loss:>9.4f}  "
+            f"{epochs:>7d}  {best:>6d}"
+        )
+
+    mean = metrics.get("c_index_mean", float("nan"))
+    std = metrics.get("c_index_std", float("nan"))
+    print(f"  {'-'*4}  {'-'*8}  {'-'*9}  {'-'*7}  {'-'*6}")
+    print(f"  {'mean':>4}  {mean:>8.4f} ± {std:.4f}  (n_folds={n})")
+    print()
+
+
 def route_outputs(files: list[Path]) -> None:
     """Copy fetched files to the canonical stage3 output directories.
 
-    * ``*.json`` → ``stage3_experiments/logs/``
+    * ``*.json`` → ``stage3_experiments/logs/``  (then prints fold summary)
     * ``*.pt``   → ``stage3_experiments/checkpoints/``
 
     Other file types are logged but not moved.
@@ -509,6 +555,7 @@ def route_outputs(files: list[Path]) -> None:
             dest = log_dir / f.name
             shutil.copy2(f, dest)
             _log(f"  log  → {dest.relative_to(_PROJECT_ROOT)}")
+            _print_fold_summary(dest)
         elif f.suffix == ".pt":
             dest = ckpt_dir / f.name
             shutil.copy2(f, dest)
