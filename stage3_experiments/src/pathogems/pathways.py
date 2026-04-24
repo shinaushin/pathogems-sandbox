@@ -78,10 +78,7 @@ def load_gene_sets(
         RuntimeError: All download URLs failed and no cache exists.
     """
     if db not in _GMT_URLS:
-        raise ValueError(
-            f"Unknown gene-set collection '{db}'. "
-            f"Supported: {sorted(_GMT_URLS)}."
-        )
+        raise ValueError(f"Unknown gene-set collection '{db}'. " f"Supported: {sorted(_GMT_URLS)}.")
 
     cache_root = cache_dir or _DEFAULT_CACHE
     cache_root.mkdir(parents=True, exist_ok=True)

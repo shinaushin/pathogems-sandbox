@@ -490,7 +490,7 @@ class Preprocessor:
     min_expressed_fraction: float = 0.20
     _selected_genes: list[str] | None = None
     _center: np.ndarray | None = None  # shape (top_k,) — training-fold median per gene
-    _scale: np.ndarray | None = None   # shape (top_k,) — training-fold MAD per gene
+    _scale: np.ndarray | None = None  # shape (top_k,) — training-fold MAD per gene
 
     def fit(self, expression: pd.DataFrame) -> Self:
         """Fit min-expression filter, gene selector, and robust scaler on training data.
@@ -528,14 +528,14 @@ class Preprocessor:
 
         # ---- Step 2: Variance-based gene selection ----
         gene_var = log_expressed.var(axis=0)  # shape (n_expressed,)
-        top_idx = np.argsort(gene_var)[-self.top_k:][::-1]  # descending variance
+        top_idx = np.argsort(gene_var)[-self.top_k :][::-1]  # descending variance
         self._selected_genes = [str(g) for g in expressed_gene_names[top_idx]]
 
         # ---- Step 3: Robust z-score statistics (median / MAD) ----
         selected_log = log_expressed[:, top_idx]  # (n_train, top_k)
         self._center = np.median(selected_log, axis=0)  # training median per gene
         abs_dev = np.abs(selected_log - self._center)
-        self._scale = np.median(abs_dev, axis=0)        # training MAD per gene
+        self._scale = np.median(abs_dev, axis=0)  # training MAD per gene
         # Guard against zero-MAD genes (fully constant expression in training fold).
         self._scale = np.where(self._scale < 1e-8, 1.0, self._scale)
 

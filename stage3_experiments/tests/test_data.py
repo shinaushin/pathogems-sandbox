@@ -349,8 +349,10 @@ class TestFilterZeroTimePatients:
         time = cohort.time.copy()
         time.iloc[3] = 0.0
         cohort_z = SurvivalCohort(
-            expression=cohort.expression, time=time,
-            event=cohort.event, study_id="test",
+            expression=cohort.expression,
+            time=time,
+            event=cohort.event,
+            study_id="test",
         )
         filtered = filter_zero_time_patients(cohort_z)
         assert filtered.expression.index.equals(filtered.time.index)
@@ -364,8 +366,10 @@ class TestRemoveOutlierSamples:
         expr = cohort.expression.copy()
         expr.iloc[0] = expr.values.max() * 100
         cohort_out = SurvivalCohort(
-            expression=expr, time=cohort.time,
-            event=cohort.event, study_id="test",
+            expression=expr,
+            time=cohort.time,
+            event=cohort.event,
+            study_id="test",
         )
         # Use a high threshold (15 MADs) so synthetic random data doesn't
         # produce false positives — only the deliberate 100× outlier is flagged.
@@ -398,8 +402,10 @@ class TestClipSurvivalTime:
         time.iloc[1] = 130.0
         event.iloc[1] = 0  # already censored — stays censored
         cohort_long = SurvivalCohort(
-            expression=cohort.expression, time=time,
-            event=event, study_id="test",
+            expression=cohort.expression,
+            time=time,
+            event=event,
+            study_id="test",
         )
         clipped = clip_survival_time(cohort_long, max_months=120.0)
         assert (clipped.time <= 120.0).all()
