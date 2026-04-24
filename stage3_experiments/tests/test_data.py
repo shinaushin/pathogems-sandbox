@@ -238,6 +238,21 @@ class TestPreprocessor:
         with pytest.raises(ValueError, match="exceeds available genes"):
             Preprocessor(top_k=10).fit(cohort.expression)
 
+    def test_no_expressed_genes_raises(self) -> None:
+        """Preprocessor.fit must raise when every gene fails the min-expression filter."""
+        rng = np.random.default_rng(0)
+        n_patients, n_genes = 20, 10
+        patients = [f"P{i:03d}" for i in range(n_patients)]
+        genes = [f"G{i:03d}" for i in range(n_genes)]
+        # All raw values <= 1 → log2(x+1) <= 1 → expressed fraction = 0 for every gene.
+        values = rng.uniform(0.0, 1.0, size=(n_patients, n_genes))
+        expr = pd.DataFrame(values, index=patients, columns=genes)
+        event = pd.Series(rng.binomial(1, 0.4, n_patients), index=patients)
+        time = pd.Series(rng.uniform(1, 120, n_patients), index=patients)
+        cohort = SurvivalCohort(expression=expr, time=time, event=event, study_id="test")
+        with pytest.raises(ValueError, match="No genes passed"):
+            Preprocessor(top_k=5, min_expressed_fraction=0.5).fit(cohort.expression)
+
     def test_min_expressed_fraction_filters_gene_universe(self) -> None:
         """Genes expressed in < min_expressed_fraction of samples are excluded."""
         rng = np.random.default_rng(42)

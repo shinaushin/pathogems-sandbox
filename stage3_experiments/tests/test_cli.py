@@ -57,15 +57,20 @@ class TestCLIFailurePath:
 
         logs_dir = tmp_path / "logs"
         # Mock assemble_cohort to succeed but cross_validate to blow up.
+        # The three QC functions must also be mocked because they operate on
+        # the MagicMock cohort (e.g. cohort.time > 0.0 raises TypeError).
+        fake_cohort = mock.MagicMock(n_patients=10, n_genes=5, event_rate=0.3)
         with (
             mock.patch("pathogems.cli._validate_study_dir"),
-            mock.patch("pathogems.cli.assemble_cohort") as fake_assemble,
+            mock.patch("pathogems.cli.assemble_cohort", return_value=fake_cohort),
+            mock.patch("pathogems.cli.filter_zero_time_patients", return_value=fake_cohort),
+            mock.patch("pathogems.cli.remove_outlier_samples", return_value=fake_cohort),
+            mock.patch("pathogems.cli.clip_survival_time", return_value=fake_cohort),
             mock.patch(
                 "pathogems.cli.cross_validate",
                 side_effect=RuntimeError("training blew up"),
             ),
         ):
-            fake_assemble.return_value = mock.MagicMock(n_patients=10, n_genes=5, event_rate=0.3)
             with pytest.raises(RuntimeError, match="training blew up"):
                 main(["--config", str(cfg_path), "--logs-dir", str(logs_dir)])
 
