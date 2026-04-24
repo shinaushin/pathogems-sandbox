@@ -212,12 +212,8 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
         col = fold_colors[fi % len(fold_colors)]
         train = curves.get("train", [])
         val = curves.get("val", [])
-        tr_pts = (
-            "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)) + "]"
-        )
-        vl_pts = (
-            "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)) + "]"
-        )
+        tr_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)) + "]"
+        vl_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)) + "]"
         _tr = (
             f"  {{label:'F{fi} train',data:{tr_pts},borderColor:'{col}',"
             f"borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3}},"
