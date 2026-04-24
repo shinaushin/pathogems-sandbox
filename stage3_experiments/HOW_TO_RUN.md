@@ -117,6 +117,78 @@ artifact to each MLflow run, so the tracker has everything the log has.
 If MLflow is not installed (`pip install mlflow`), training continues
 normally with a printed warning. See ADR 0008 for rationale.
 
+## Alternate: Run on Kaggle GPU (free, no local GPU required)
+
+Kaggle provides **30 free GPU hours per week**.  The bridge script
+(`stage3_experiments/scripts/kaggle_bridge.py`) handles the full round-trip:
+bundles the pathogems source, generates a self-contained Jupyter notebook,
+pushes it to Kaggle, waits for it to finish, and routes the run log and any
+checkpoints back to the right directories.
+
+### 9a. Install bridge dependencies
+
+```bash
+pip install -e "stage3_experiments/[kaggle]"
+# or, if you used the conda env:
+pip install kaggle kagglehub nbformat
+```
+
+### 9b. Set up Kaggle credentials
+
+Kaggle now uses a new token system alongside the older `kaggle.json` format.
+The bridge supports both, but the new token is recommended:
+
+1. Go to <https://www.kaggle.com/settings> → **API** → **Generate New Token**
+2. Copy the token string, then either:
+
+```bash
+export KAGGLE_API_TOKEN=your_token_here
+export KAGGLE_USERNAME=your_kaggle_username
+```
+
+or save the token to `~/.kaggle/access_token` and set `KAGGLE_USERNAME`
+as above.  The bridge reads the token via `kagglehub` and bridges it to the
+`KAGGLE_KEY` env var that the `kaggle` package uses internally for kernel ops.
+
+Alternatively, open `stage3_experiments/scripts/kaggle_bridge.py` and set
+`_DEFAULT_USERNAME` at the top of the file.
+
+### 9c. Run an experiment via the bridge
+
+```bash
+# CPU run (no GPU quota consumed)
+python stage3_experiments/scripts/kaggle_bridge.py \
+    --config stage3_experiments/configs/brca_omics_baseline.json
+
+# GPU run (uses Kaggle T4 GPU, counts against 30 hr/week)
+python stage3_experiments/scripts/kaggle_bridge.py \
+    --config stage3_experiments/configs/brca_omics_baseline.json \
+    --gpu
+
+# Custom kernel slug
+python stage3_experiments/scripts/kaggle_bridge.py \
+    --config stage3_experiments/configs/brca_pathway_mlp.json \
+    --gpu --slug pathogems-pathway
+```
+
+The bridge will:
+1. Bundle `stage3_experiments/src/` + `pyproject.toml` into a tarball
+2. Generate a notebook that installs pathogems, downloads BRCA data from
+   cBioPortal, and runs `pathogems-train`
+3. Push the kernel to Kaggle and poll every 30 s until it finishes
+4. Download outputs and route them:
+   - `*_run.json` → `stage3_experiments/logs/`
+   - `*.pt` checkpoints → `stage3_experiments/checkpoints/`
+
+### 9d. Commit the run log
+
+```bash
+git add stage3_experiments/logs/<experiment>_run.json
+git commit -m "Run log: <experiment> via Kaggle GPU"
+```
+
+---
+
 ## Developer shortcuts
 
 The top-level `Makefile` provides convenience targets:

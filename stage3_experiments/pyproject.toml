@@ -25,6 +25,17 @@ dependencies = [
   "scikit-survival>=0.22",
 ]
 
+[project.optional-dependencies]
+# Install these to use the Kaggle GPU bridge:
+#   pip install -e "stage3_experiments/[kaggle]"
+# Requires two packages because kagglehub handles the new token format
+# while kaggle (the older package) is still needed for kernel push/poll/fetch.
+kaggle = [
+  "kaggle>=1.6",          # kernel push / poll / fetch via KaggleApiExtended
+  "kagglehub>=0.3",       # new token auth (reads KAGGLE_API_TOKEN or ~/.kaggle/access_token)
+  "nbformat>=5.9",        # converts the training config + source into a .ipynb
+]
+
 [project.scripts]
 # `pathogems-train` becomes available on PATH after `pip install -e .`
 pathogems-train = "pathogems.cli:main"
