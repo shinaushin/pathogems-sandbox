@@ -192,13 +192,13 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
         pct = min(ci / 0.80 * 100, 100)
         bench_low_pct = BENCH_LOW / 0.80 * 100
         bench_high_pct = BENCH_HIGH / 0.80 * 100
+        bench_width_pct = bench_high_pct - bench_low_pct
         cls = _cindex_color(ci)
         fold_bars += f"""
 <div class="fold-row">
   <span class="fold-label">Fold {i}</span>
   <div class="fold-bar-wrap">
-    <div class="bench-band" style="left:{bench_low_pct:.1f}%;width:{bench_high_pct - bench_low_pct:.1f}%"
-    ></div>
+    <div class="bench-band" style="left:{bench_low_pct:.1f}%;width:{bench_width_pct:.1f}%"></div>
     <div class="fold-bar {cls}" style="width:{pct:.1f}%"></div>
   </div>
   <span class="fold-val">{ci:.4f}</span>
