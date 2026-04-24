@@ -183,7 +183,7 @@ def build_connectivity(
         pathway_names.append("UNASSIGNED")
 
     log.info(
-        "[pathways] Connectivity: %d selected genes × %d pathways "
+        "[pathways] Connectivity: %d selected genes x %d pathways "
         "(%d assigned, %d unassigned → UNASSIGNED pathway)",
         n_genes,
         len(pathway_names),

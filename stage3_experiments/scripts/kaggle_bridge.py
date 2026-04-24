@@ -1,4 +1,4 @@
-"""Run a pathogems experiment on Kaggle's free GPU.
+r"""Run a pathogems experiment on Kaggle's free GPU.
 
 The bridge handles the full round-trip:
   1. Bundle the pathogems source into a tarball.
@@ -384,7 +384,7 @@ print(f"\\nOutputs ready in {_OUT}")
 # ---------------------------------------------------------------------------
 
 
-def build_notebook(config: dict) -> "nbformat.NotebookNode":
+def build_notebook(config: dict) -> nbformat.NotebookNode:
     """Assemble the Kaggle training notebook from the cell templates.
 
     Args:
@@ -442,7 +442,7 @@ def _write_kernel_metadata(
     (folder / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2))
 
 
-def push_kernel(api: "KaggleApiExtended", folder: Path) -> str:
+def push_kernel(api: KaggleApiExtended, folder: Path) -> str:
     """Push the kernel folder to Kaggle and return the kernel reference string."""
     _log("Pushing kernel to Kaggle…")
     api.kernels_push(str(folder))
@@ -452,7 +452,7 @@ def push_kernel(api: "KaggleApiExtended", folder: Path) -> str:
     return ref
 
 
-def wait_for_completion(api: "KaggleApiExtended", kernel_ref: str) -> str:
+def wait_for_completion(api: KaggleApiExtended, kernel_ref: str) -> str:
     """Poll until the kernel reaches a terminal state or the timeout fires.
 
     Returns the final status string: ``"complete"``, ``"error"``,
@@ -475,7 +475,7 @@ def wait_for_completion(api: "KaggleApiExtended", kernel_ref: str) -> str:
     return "timeout"
 
 
-def fetch_outputs(api: "KaggleApiExtended", kernel_ref: str, output_dir: Path) -> list[Path]:
+def fetch_outputs(api: KaggleApiExtended, kernel_ref: str, output_dir: Path) -> list[Path]:
     """Download all kernel output files to ``output_dir``."""
     output_dir.mkdir(parents=True, exist_ok=True)
     _log(f"Fetching outputs → {output_dir}")
@@ -673,8 +673,8 @@ def dry_run(
     if all(ok for _, ok, _ in results):
         _log(f"Inspect the generated kernel at: {out_dir}")
         _log(f"  notebook:         {nb_name}")
-        _log(f"  source tarball:   pathogems_src.tar.gz")
-        _log(f"  kernel metadata:  kernel-metadata.json")
+        _log("  source tarball:   pathogems_src.tar.gz")
+        _log("  kernel metadata:  kernel-metadata.json")
         _log("")
         _log("To run for real (CPU, no GPU quota):")
         _log(f"  python {Path(__file__).name} " f"--config {config_path}")

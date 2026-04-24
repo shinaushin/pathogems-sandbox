@@ -1,4 +1,4 @@
-"""Generate a self-contained HTML experiment comparison report.
+r"""Generate a self-contained HTML experiment comparison report.
 
 Reads every *.json file in the logs directory, diffs each experiment's
 config against the baseline (brca_omics_baseline), and writes a
@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,10 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
         else:
             diff_html = '<p class="muted">Config identical to baseline.</p>'
     elif name == BASELINE_NAME:
-        diff_html = '<p class="muted">This is the baseline — all other experiments are diffed against it.</p>'
+        diff_html = (
+            '<p class="muted">This is the baseline'
+            " — all other experiments are diffed against it.</p>"
+        )
     else:
         diff_html = ""
 
@@ -194,7 +197,8 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
 <div class="fold-row">
   <span class="fold-label">Fold {i}</span>
   <div class="fold-bar-wrap">
-    <div class="bench-band" style="left:{bench_low_pct:.1f}%;width:{bench_high_pct - bench_low_pct:.1f}%"></div>
+    <div class="bench-band" style="left:{bench_low_pct:.1f}%;width:{bench_high_pct - bench_low_pct:.1f}%"
+    ></div>
     <div class="fold-bar {cls}" style="width:{pct:.1f}%"></div>
   </div>
   <span class="fold-val">{ci:.4f}</span>
@@ -208,11 +212,21 @@ def _html_experiment_section(run: dict, baseline_cfg: dict | None, rank: int) ->
         col = fold_colors[fi % len(fold_colors)]
         train = curves.get("train", [])
         val = curves.get("val", [])
-        tr_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)) + "]"
-        vl_pts = "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)) + "]"
-        datasets_js += f"""
-  {{label:'F{fi} train',data:{tr_pts},borderColor:'{col}',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3}},
-  {{label:'F{fi} val',  data:{vl_pts},borderColor:'{col}',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3}},"""
+        tr_pts = (
+            "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(train)) + "]"
+        )
+        vl_pts = (
+            "[" + ",".join(f"{{x:{e+1},y:{v:.4f}}}" for e, v in enumerate(val)) + "]"
+        )
+        _tr = (
+            f"  {{label:'F{fi} train',data:{tr_pts},borderColor:'{col}',"
+            f"borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3}},"
+        )
+        _vl = (
+            f"  {{label:'F{fi} val',  data:{vl_pts},borderColor:'{col}',"
+            f"borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3}},"
+        )
+        datasets_js += f"\n{_tr}\n{_vl}"
 
     chart_html = ""
     if datasets_js:
@@ -255,7 +269,7 @@ new Chart(document.getElementById('{canvas_id}'),{{
   <h3>Config changes vs baseline</h3>
   {diff_html}
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   {fold_bars}
 
   <h3>Loss curves
@@ -338,7 +352,7 @@ def _build_comparison_chart_js(runs: list[dict]) -> str:
               borderWidth: 1,
               label: {{
                 display: true,
-                content: 'Benchmark 0.62–0.68',
+                content: 'Benchmark 0.62-0.68',
                 position: 'start',
                 font: {{ size: 10 }},
                 color: '#ba7517',
@@ -380,7 +394,7 @@ def generate_report(logs_dir: Path, out_path: Path) -> None:
     baseline_run = next((r for r in runs if r.get("run_name") == BASELINE_NAME), runs[0])
     baseline_cfg = baseline_run.get("config", {})
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     n = len(runs)
 
     summary_rows = "".join(_html_summary_row(r, baseline_cfg, i) for i, r in enumerate(runs))
@@ -530,7 +544,8 @@ code {{ font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 <body>
 <div class="page-header">
   <h1>PathoGems — Experiment Report</h1>
-  <p>TCGA-BRCA survival prediction &nbsp;·&nbsp; {n} experiment{"s" if n != 1 else ""} &nbsp;·&nbsp; Generated {now}</p>
+  <p>TCGA-BRCA survival prediction &nbsp;·&nbsp;
+     {n} experiment{"s" if n != 1 else ""} &nbsp;·&nbsp; Generated {now}</p>
 </div>
 
 <div class="container">

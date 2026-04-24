@@ -28,7 +28,7 @@ Cohort-level QC pipeline (apply in this order before cv_splits):
 Per-fold preprocessing (inside build_fold_tensors, fit on training fold only):
     5. Minimum-expression filter   — keep genes expressed in ≥ fraction of samples
     6. Variance-based gene selection — top-k most variable genes (log scale)
-    7. Robust z-score              — (x − median) / MAD, per gene, per fold
+    7. Robust z-score              — (x - median) / MAD, per gene, per fold
 
 Scope: this module only handles omics-only inputs for ADR 0001's baseline.
 WSI feature loading will arrive in a separate module when Stage 2's WSI
@@ -41,10 +41,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-try:
-    from typing import Self
-except ImportError:  # Python < 3.11
-    from typing_extensions import Self
+from typing import Self
 
 import numpy as np
 import pandas as pd
@@ -329,7 +326,7 @@ def remove_outlier_samples(
             sufficient to capture the major axes of expression variation in
             TCGA-BRCA while remaining sensitive to global outliers.
         mad_threshold: Number of MADs beyond which a sample is flagged.
-            5.0 is deliberately conservative — equivalent to roughly ±7σ
+            5.0 is deliberately conservative — equivalent to roughly ±7s
             for Gaussian data — to avoid removing genuine biological
             extremes. Only clear technical artefacts should be caught.
 
@@ -361,7 +358,7 @@ def remove_outlier_samples(
         outlier_ids = cohort.expression.index[is_outlier].tolist()
         log.info(
             "remove_outlier_samples: flagged %d patient(s) with a PC score "
-            "> %.1f MADs from the median (PCA components 1–%d). "
+            "> %.1f MADs from the median (PCA components 1-%d). "
             "Removed: %s. %d remain.",
             n_outliers,
             mad_threshold,

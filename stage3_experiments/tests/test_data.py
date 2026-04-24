@@ -270,7 +270,7 @@ class TestPreprocessor:
         # With top_k=5 and only 20 expressed genes, selection should still work.
         pre = Preprocessor(top_k=5, min_expressed_fraction=0.5).fit(cohort.expression)
         assert len(pre.selected_genes) == 5
-        # All selected genes should come from the expressed set (G010–G029).
+        # All selected genes should come from the expressed set (G010-G029).
         expressed_gene_set = set(genes[10:])
         assert all(g in expressed_gene_set for g in pre.selected_genes)
 
@@ -377,7 +377,7 @@ class TestFilterZeroTimePatients:
 class TestRemoveOutlierSamples:
     def test_removes_injected_outlier(self) -> None:
         cohort = _make_cohort(n_patients=50, n_genes=30)
-        # Inject one extreme outlier by setting all genes to 100× the max.
+        # Inject one extreme outlier by setting all genes to 100x the max.
         expr = cohort.expression.copy()
         expr.iloc[0] = expr.values.max() * 100
         cohort_out = SurvivalCohort(
@@ -387,7 +387,7 @@ class TestRemoveOutlierSamples:
             study_id="test",
         )
         # Use a high threshold (15 MADs) so synthetic random data doesn't
-        # produce false positives — only the deliberate 100× outlier is flagged.
+        # produce false positives — only the deliberate 100x outlier is flagged.
         filtered = remove_outlier_samples(cohort_out, n_components=5, mad_threshold=15.0)
         assert filtered.n_patients < cohort_out.n_patients
         # The injected outlier (first patient) should have been removed.

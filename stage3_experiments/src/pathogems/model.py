@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 from torch import nn
 
 from .registry import Registry
@@ -138,7 +138,7 @@ class OmicsMLP(nn.Module):
 def _build_omics_mlp(
     in_features: int,
     config: ExperimentConfig,
-    selected_genes: list[str],  # noqa: ARG001 — not used by flat MLP
+    selected_genes: list[str],  # not used by flat MLP
 ) -> nn.Module:
     """Factory: translate the generic `ExperimentConfig` into `OmicsMLPConfig`.
 
@@ -203,7 +203,7 @@ class LinearCox(nn.Module):
 def _build_linear_cox(
     in_features: int,
     config: ExperimentConfig,
-    selected_genes: list[str],  # noqa: ARG001 — not used by linear model
+    selected_genes: list[str],  # not used by linear model
 ) -> nn.Module:
     """LinearCox has no hyperparameters beyond `in_features`.
 
@@ -373,7 +373,7 @@ def _build_pathway_mlp(
     mask, pathway_names, assigned = build_connectivity(selected_genes, gene_sets)
 
     log.info(
-        "[pathway_mlp] %d pathways × %d genes (%d/%d genes assigned)",
+        "[pathway_mlp] %d pathways x %d genes (%d/%d genes assigned)",
         len(pathway_names),
         in_features,
         len(assigned),
@@ -484,7 +484,7 @@ class GeneAttentionNet(nn.Module):
 def _build_gene_attention(
     in_features: int,
     config: ExperimentConfig,
-    selected_genes: list[str],  # noqa: ARG001 — used implicitly via in_features
+    selected_genes: list[str],  # used implicitly via in_features
 ) -> nn.Module:
     """Build a GeneAttentionNet from `ExperimentConfig`.
 
