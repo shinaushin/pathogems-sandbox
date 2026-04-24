@@ -182,6 +182,7 @@ class TestLoadGeneSets:
         # Move file out, remove dir, put it back after to test mkdir behaviour.
         gmt_content = (cache_dir / "hallmark.gmt").read_text()
         shutil.rmtree(cache_dir)
+
         # Patch download so it writes the file instead of hitting the network.
         def _fake_download(db: str, dest: Path) -> None:
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -203,7 +204,9 @@ class TestDownloadGmt:
             "pathogems.pathways.urllib.request.urlopen",
             side_effect=OSError("connection refused"),
         ):
-            with pytest.raises(RuntimeError, match="All download URLs for 'hallmark' gene sets failed"):
+            with pytest.raises(
+                RuntimeError, match="All download URLs for 'hallmark' gene sets failed"
+            ):
                 _download_gmt("hallmark", dest)
 
     def test_error_message_contains_dest_path(self, tmp_path: Path) -> None:
