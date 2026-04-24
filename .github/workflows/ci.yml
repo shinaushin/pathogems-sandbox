@@ -136,7 +136,15 @@ jobs:
       - name: Scan for known vulnerabilities
         # --skip-editable: pathogems itself won't appear in any CVE database;
         # only its transitive dependencies matter here.
-        run: pip-audit --skip-editable
+        #
+        # CVE-2026-3219: vulnerability in pip itself (the package manager, not a
+        # project dependency). pip-audit reports no fix version, so there is no
+        # patched release to upgrade to. This affects the pip binary used by the
+        # CI runner and cannot be remediated by changing pyproject.toml or
+        # environment.yml. Suppress until a fixed pip version is published.
+        # Tracked: https://www.cve.org/CVERecord?id=CVE-2026-3219
+        # TODO: remove --ignore-vuln once pip releases a patched version.
+        run: pip-audit --skip-editable --ignore-vuln CVE-2026-3219
 
   # ---------------------------------------------------------------------------
   # 5. Dependency pin consistency
