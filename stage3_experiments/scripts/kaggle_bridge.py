@@ -243,9 +243,12 @@ def upload_brca_dataset(
         if result.returncode != 0 and "already exists" in (result.stderr + result.stdout).lower():
             _log("  Dataset already exists — pushing a new version…")
             result = _kaggle_cmd(
-                "datasets", "version",
-                "-p", str(tmp_path),
-                "-m", "Updated by kaggle_bridge.py",
+                "datasets",
+                "version",
+                "-p",
+                str(tmp_path),
+                "-m",
+                "Updated by kaggle_bridge.py",
             )
         if result.returncode != 0:
             raise RuntimeError(
@@ -382,6 +385,7 @@ _BRCA_URLS = [
     f"http://download.cbioportal.org/{_STUDY_ID}.tar.gz",
     f"https://cbioportal-datahub.s3.amazonaws.com/{_STUDY_ID}.tar.gz",
 ]
+
 
 def _make_fetch_data_cell(dataset_slug: str | None = None) -> str:
     """Return the notebook cell that makes BRCA data available in the kernel.
