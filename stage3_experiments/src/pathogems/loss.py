@@ -119,4 +119,5 @@ def cox_ph_loss(
 def _cox_ph_loss_default(
     risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor
 ) -> torch.Tensor:
+    """Registry adapter: call ``cox_ph_loss`` with default ``epsilon``."""
     return cox_ph_loss(risk, time, event)

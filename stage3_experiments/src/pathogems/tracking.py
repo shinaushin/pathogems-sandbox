@@ -57,16 +57,16 @@ class _NullTracker:
     """
 
     def log_params(self, params: dict[str, Any]) -> None:
-        pass
+        """No-op."""
 
     def log_metric(self, name: str, value: float, step: int | None = None) -> None:
-        pass
+        """No-op."""
 
     def log_cv_result(self, result: CVResult) -> None:
-        pass
+        """No-op."""
 
     def log_artifact(self, path: Path) -> None:
-        pass
+        """No-op."""
 
 
 class _MLflowTracker:
@@ -78,14 +78,17 @@ class _MLflowTracker:
     """
 
     def __init__(self, mlflow_module: Any) -> None:
+        """Store a reference to the already-imported ``mlflow`` module."""
         self._ml = mlflow_module
 
     def log_params(self, params: dict[str, Any]) -> None:
+        """Log config params, dropping ``None`` values (MLflow stringifies them)."""
         # MLflow casts all param values to str; none-like values would
         # round-trip as "None". Filter them out for cleaner UI.
         self._ml.log_params({k: v for k, v in params.items() if v is not None})
 
     def log_metric(self, name: str, value: float, step: int | None = None) -> None:
+        """Log a scalar metric, silently skipping non-finite values."""
         # mlflow silently drops non-finite floats; be explicit.
         if value != value or value in (float("inf"), float("-inf")):  # NaN or inf
             return
@@ -113,6 +116,7 @@ class _MLflowTracker:
                 self.log_metric(f"fold{fold.fold_id}_val_loss", vl, step=epoch)
 
     def log_artifact(self, path: Path) -> None:
+        """Upload a local file as an MLflow artifact."""
         self._ml.log_artifact(str(path))
 
 

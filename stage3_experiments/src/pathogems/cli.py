@@ -37,6 +37,7 @@ log = logging.getLogger(__name__)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments and return the populated namespace."""
     p = argparse.ArgumentParser(
         prog="pathogems-train",
         description="Train one Stage 3 experiment end-to-end and write a run log.",
@@ -129,6 +130,12 @@ def _refresh_report(logs_dir: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the full training pipeline for one experiment; return an exit code.
+
+    Orchestrates config loading, data assembly, QC, cross-validation, and run
+    logging. On any failure past config load, writes a ``status="failed"`` run
+    log before re-raising so Stage 4 always has a record of the attempt.
+    """
     args = _parse_args(argv)
 
     # Configure logging early so all modules that use `logging` are wired up.

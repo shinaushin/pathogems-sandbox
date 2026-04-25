@@ -382,6 +382,7 @@ def _build_comparison_chart_js(runs: list[dict]) -> str:
 
 
 def generate_report(logs_dir: Path, out_path: Path) -> None:
+    """Build the HTML report from all run logs in ``logs_dir`` and write it to ``out_path``."""
     runs = _load_logs(logs_dir)
     if not runs:
         print(f"[report] No run logs found in {logs_dir}. Nothing to report.")
@@ -585,6 +586,7 @@ code {{ font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point; return 0 on success or 1 if the logs directory is missing."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

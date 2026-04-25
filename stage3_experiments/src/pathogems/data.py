@@ -104,14 +104,17 @@ class SurvivalCohort:
 
     @property
     def n_patients(self) -> int:
+        """Number of patients in the cohort."""
         return len(self.time)
 
     @property
     def n_genes(self) -> int:
+        """Number of gene features in the expression matrix."""
         return int(self.expression.shape[1])
 
     @property
     def event_rate(self) -> float:
+        """Fraction of patients who experienced the event (died)."""
         return float(self.event.mean())
 
 
@@ -561,6 +564,7 @@ class Preprocessor:
 
     @property
     def selected_genes(self) -> list[str]:
+        """Ordered list of gene names chosen by ``fit``.  Raises if not yet fit."""
         if self._selected_genes is None:
             raise RuntimeError("Preprocessor has not been fit yet.")
         return list(self._selected_genes)

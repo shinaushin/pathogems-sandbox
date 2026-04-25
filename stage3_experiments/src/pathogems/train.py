@@ -68,23 +68,28 @@ class CVResult:
 
     @property
     def c_index_mean(self) -> float:
+        """Mean C-index across folds, ignoring NaN (failed) folds."""
         vals = [f.c_index for f in self.folds if not math.isnan(f.c_index)]
         return float(np.mean(vals)) if vals else float("nan")
 
     @property
     def c_index_std(self) -> float:
+        """Sample std of C-index across folds (ddof=1); 0.0 for a single fold."""
         vals = [f.c_index for f in self.folds if not math.isnan(f.c_index)]
         # ddof=1 because we're estimating population std from a sample of folds.
         return float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
 
     @property
     def final_loss_mean(self) -> float:
+        """Mean final validation loss across all folds."""
         return float(np.mean([f.final_val_loss for f in self.folds]))
 
     def per_fold_c_index(self) -> list[float]:
+        """C-index for each fold in fold order."""
         return [f.c_index for f in self.folds]
 
     def per_fold_final_loss(self) -> list[float]:
+        """Final validation loss for each fold in fold order."""
         return [f.final_val_loss for f in self.folds]
 
 
@@ -139,6 +144,7 @@ def train_one_fold(
     )
 
     def _to_t(arr: np.ndarray, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+        """Cast a NumPy array to a typed tensor on the training device."""
         return torch.as_tensor(arr, dtype=dtype, device=device)
 
     x_tr = _to_t(fold.x_train[inner_train_idx])

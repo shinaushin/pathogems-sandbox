@@ -626,6 +626,7 @@ def _write_kernel_metadata(
     username: str,
     dataset_sources: list[str] | None = None,
 ) -> None:
+    """Write ``kernel-metadata.json`` into ``folder`` for ``kaggle kernels push``."""
     metadata = {
         "id": f"{username}/{kernel_slug}",
         "title": kernel_slug.replace("-", " ").title(),

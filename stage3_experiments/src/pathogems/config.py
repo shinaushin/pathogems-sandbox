@@ -145,10 +145,16 @@ class ExperimentConfig:
         return d
 
     def to_json(self, path: Path) -> None:
+        """Serialise to a pretty-printed JSON file (newline-terminated)."""
         path.write_text(json.dumps(self.to_dict(), indent=2) + "\n")
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ExperimentConfig:
+        """Reconstruct from a plain dict, coercing lists back to tuples.
+
+        Raises ``ValueError`` on unknown keys or an unsupported
+        ``config_version`` so mis-spelled field names fail loudly.
+        """
         d = dict(d)
         # Coerce JSON lists back to tuples for fields that expect them.
         if "modalities" in d and isinstance(d["modalities"], list):
@@ -172,4 +178,5 @@ class ExperimentConfig:
 
     @classmethod
     def from_json(cls, path: Path) -> ExperimentConfig:
+        """Load from a JSON file written by ``to_json``."""
         return cls.from_dict(json.loads(path.read_text()))

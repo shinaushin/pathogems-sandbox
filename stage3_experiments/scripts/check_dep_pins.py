@@ -99,6 +99,7 @@ def _load_env_upper_bounds(env_path: Path) -> dict[str, tuple[int, ...]]:
     upper_bounds: dict[str, tuple[int, ...]] = {}
 
     def _process(dep: str) -> None:
+        """Parse one conda/pip dep string and record any ``<`` upper bound."""
         # Strip conda channel prefix, e.g. "pytorch::pytorch>=2.2,<2.6".
         dep = dep.split("::")[-1].strip()
         m = re.match(r"([A-Za-z0-9_.\-]+)(.*)", dep)
@@ -121,6 +122,7 @@ def _load_env_upper_bounds(env_path: Path) -> dict[str, tuple[int, ...]]:
 
 
 def main() -> int:
+    """Check pins and return 0 (consistent) or 1 (conflict detected)."""
     root = Path(__file__).resolve().parent.parent.parent
     pyproject_path = root / "stage3_experiments" / "pyproject.toml"
     env_path = root / "environment.yml"

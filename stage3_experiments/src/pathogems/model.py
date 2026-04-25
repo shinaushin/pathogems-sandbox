@@ -131,6 +131,7 @@ class OmicsMLP(nn.Module):
         return self.net(x).squeeze(-1)
 
     def num_parameters(self) -> int:
+        """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
@@ -189,6 +190,7 @@ class LinearCox(nn.Module):
         self.in_features = in_features
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Return risk scores of shape ``(batch,)``."""
         if x.dim() != 2 or x.shape[1] != self.in_features:
             raise ValueError(
                 f"Expected input of shape (batch, {self.in_features}), got {tuple(x.shape)}."
@@ -196,6 +198,7 @@ class LinearCox(nn.Module):
         return self.linear(x).squeeze(-1)
 
     def num_parameters(self) -> int:
+        """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
@@ -275,9 +278,11 @@ class MaskedLinear(nn.Module):
             self.weight.mul_(self.mask)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the masked linear transformation to ``x``."""
         return F.linear(x, self.weight * self.mask, self.bias)
 
     def extra_repr(self) -> str:
+        """Summary string shown by ``print(model)`` — reports active connections."""
         out_f, in_f = self.mask.shape
         n_active = int(self.mask.sum().item())
         return f"in={in_f}, out={out_f}, active_connections={n_active}/{in_f * out_f}"
@@ -341,6 +346,7 @@ class PathwayMLP(nn.Module):
         self.n_genes = mask.shape[1]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Return Cox risk scores of shape ``(batch,)``."""
         if x.dim() != 2 or x.shape[1] != self.n_genes:
             raise ValueError(
                 f"Expected input of shape (batch, {self.n_genes}), got {tuple(x.shape)}."
@@ -349,6 +355,7 @@ class PathwayMLP(nn.Module):
         return self.head(pathway_acts).squeeze(-1)  # (batch,)
 
     def num_parameters(self) -> int:
+        """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
@@ -459,6 +466,7 @@ class GeneAttentionNet(nn.Module):
         nn.init.zeros_(self.head.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Return Cox risk scores of shape ``(batch,)``."""
         if x.dim() != 2 or x.shape[1] != self.n_genes:
             raise ValueError(
                 f"Expected input of shape (batch, {self.n_genes}), got {tuple(x.shape)}."
@@ -477,6 +485,7 @@ class GeneAttentionNet(nn.Module):
         return self.head(pooled).squeeze(-1)  # (batch,)
 
     def num_parameters(self) -> int:
+        """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 

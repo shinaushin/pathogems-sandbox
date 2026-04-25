@@ -38,12 +38,15 @@ OPTIMIZER_REGISTRY: Registry[OptimizerFactory] = Registry("optimizer")
 
 @OPTIMIZER_REGISTRY.register("adam")
 def _build_adam(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
+    """Build Adam with lr and weight_decay from config."""
     return optim.Adam(list(params), lr=config.lr, weight_decay=config.weight_decay)
 
 
 @OPTIMIZER_REGISTRY.register("sgd")
 def _build_sgd(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
-    # Momentum = 0.9 is the textbook default for SGD on non-convex NN losses;
-    # it's fixed here (rather than a config field) so switching adam→sgd is
-    # a true one-field change in the experiment config.
+    """Build SGD with fixed momentum=0.9 and lr/weight_decay from config.
+
+    Momentum is hardcoded to the textbook default so switching adam→sgd is a
+    true one-field change in the experiment config rather than two.
+    """
     return optim.SGD(list(params), lr=config.lr, weight_decay=config.weight_decay, momentum=0.9)
