@@ -301,6 +301,7 @@ for _pkg in _extra:
 print("Extra deps installed:", _extra)
 """
 
+
 def _make_install_pathogems_cell(src_tarball: Path) -> str:
     """Return a notebook cell that decodes and installs pathogems from a tarball.
 
@@ -353,6 +354,7 @@ def _make_install_pathogems_cell(src_tarball: Path) -> str:
         "importlib.import_module('pathogems')\n"
         "print('pathogems installed and importable')\n"
     )
+
 
 # URLs mirror fetch_cbioportal_brca.py so the download logic stays in sync.
 _STUDY_ID = "brca_tcga_pan_can_atlas_2018"
