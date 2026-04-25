@@ -28,10 +28,8 @@ dependencies = [
 [project.optional-dependencies]
 # Install these to use the Kaggle GPU bridge:
 #   pip install -e "stage3_experiments/[kaggle]"
-# Requires two packages because kagglehub handles the new token format
-# while kaggle (the older package) is still needed for kernel push/poll/fetch.
 kaggle = [
-  "kaggle>=1.6,<2.0",     # kernel push / poll / fetch via KaggleApiExtended (v2 removed this class)
+  "kaggle>=1.6",          # kernel push / poll / fetch via kaggle CLI (v1 or v2 both work)
   "kagglehub>=0.3",       # new token auth (reads KAGGLE_API_TOKEN or ~/.kaggle/access_token)
   "nbformat>=5.9",        # converts the training config + source into a .ipynb
 ]

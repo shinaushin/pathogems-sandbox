@@ -44,6 +44,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -69,7 +70,7 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from kaggle.api.kaggle_api_extended import KaggleApiExtended
+    import kaggle  # noqa: F401  (presence check — CLI must be on PATH)
 except ImportError:
     print("Missing: pip install kaggle")
     sys.exit(1)
@@ -129,16 +130,24 @@ def _read_token_file() -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def authenticate() -> KaggleApiExtended:
-    """Bridge the new Kaggle token to the env vars the ``kaggle`` package needs.
+def _kaggle_cmd(*args: str) -> subprocess.CompletedProcess[str]:
+    """Run a ``kaggle`` CLI subcommand and return the completed process.
 
-    kagglehub reads from (in priority order):
+    Credentials must already be set in the environment (``KAGGLE_USERNAME`` +
+    ``KAGGLE_KEY``) before calling this — ``authenticate()`` does that.
+    """
+    return subprocess.run(["kaggle", *args], capture_output=True, text=True)
+
+
+def authenticate() -> None:
+    """Bridge the new Kaggle token to the env vars the ``kaggle`` CLI needs.
+
+    Reads from (in priority order):
       1. ``KAGGLE_API_TOKEN`` env var
       2. ``~/.kaggle/access_token`` file
 
-    The older ``kaggle`` package (still required for kernel push/poll/fetch)
-    reads ``KAGGLE_USERNAME`` + ``KAGGLE_KEY``, so we set those from the
-    token before constructing ``KaggleApiExtended``.
+    The ``kaggle`` CLI reads ``KAGGLE_USERNAME`` + ``KAGGLE_KEY``, so we set
+    those from the discovered token.
     """
     token = os.environ.get("KAGGLE_API_TOKEN") or _read_token_file()
     if not token:
@@ -152,11 +161,7 @@ def authenticate() -> KaggleApiExtended:
     username = _kaggle_username()
     os.environ["KAGGLE_USERNAME"] = username
     os.environ["KAGGLE_KEY"] = token
-
-    api = KaggleApiExtended()
-    api.authenticate()
     _log(f"Authenticated with Kaggle as '{username}'")
-    return api
 
 
 # ---------------------------------------------------------------------------
@@ -442,17 +447,22 @@ def _write_kernel_metadata(
     (folder / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2))
 
 
-def push_kernel(api: KaggleApiExtended, folder: Path) -> str:
+def push_kernel(folder: Path) -> str:
     """Push the kernel folder to Kaggle and return the kernel reference string."""
     _log("Pushing kernel to Kaggle…")
-    api.kernels_push(str(folder))
+    result = _kaggle_cmd("kernels", "push", "-p", str(folder))
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"kaggle kernels push failed (exit {result.returncode}):\n"
+            f"{result.stderr or result.stdout}"
+        )
     meta = json.loads((folder / "kernel-metadata.json").read_text())
     ref = meta["id"]
     _log(f"Pushed → https://www.kaggle.com/code/{ref}")
     return ref
 
 
-def wait_for_completion(api: KaggleApiExtended, kernel_ref: str) -> str:
+def wait_for_completion(kernel_ref: str) -> str:
     """Poll until the kernel reaches a terminal state or the timeout fires.
 
     Returns the final status string: ``"complete"``, ``"error"``,
@@ -460,26 +470,35 @@ def wait_for_completion(api: KaggleApiExtended, kernel_ref: str) -> str:
     """
     _log(f"Polling every {POLL_INTERVAL_SEC}s (timeout {MAX_WAIT_SEC}s)…")
     elapsed = 0
+    # Map lowercase CLI output tokens to the canonical status strings.
+    _TERMINAL: dict[str, str] = {
+        "complete": "complete",
+        "error": "error",
+        "cancelacknowledged": "cancelAcknowledged",
+    }
     while elapsed < MAX_WAIT_SEC:
-        obj = api.kernels_status(kernel_ref)
-        status = (
-            obj.get("status", "unknown")
-            if isinstance(obj, dict)
-            else getattr(obj, "status", "unknown")
-        )
+        result = _kaggle_cmd("kernels", "status", kernel_ref)
+        output = (result.stdout + result.stderr).lower()
+        matched = next((v for k, v in _TERMINAL.items() if k in output), None)
+        status = matched or "running"
         _log(f"  status={status}  elapsed={elapsed}s")
-        if status in ("complete", "error", "cancelAcknowledged"):
-            return str(status)
+        if matched:
+            return matched
         time.sleep(POLL_INTERVAL_SEC)
         elapsed += POLL_INTERVAL_SEC
     return "timeout"
 
 
-def fetch_outputs(api: KaggleApiExtended, kernel_ref: str, output_dir: Path) -> list[Path]:
+def fetch_outputs(kernel_ref: str, output_dir: Path) -> list[Path]:
     """Download all kernel output files to ``output_dir``."""
     output_dir.mkdir(parents=True, exist_ok=True)
     _log(f"Fetching outputs → {output_dir}")
-    api.kernels_output(kernel_ref, path=str(output_dir), force=True, quiet=False)
+    result = _kaggle_cmd("kernels", "output", kernel_ref, "-p", str(output_dir), "--force")
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"kaggle kernels output failed (exit {result.returncode}):\n"
+            f"{result.stderr or result.stdout}"
+        )
     files = [f for f in output_dir.rglob("*") if f.is_file()]
     for f in files:
         _log(f"  {f.name}  ({f.stat().st_size:,} bytes)")
@@ -529,13 +548,20 @@ def _print_fold_summary(log_path: Path) -> None:
     print()
 
 
-def route_outputs(files: list[Path]) -> None:
+def route_outputs(files: list[Path], *, no_overwrite: bool = False) -> None:
     """Copy fetched files to the canonical stage3 output directories.
 
     * ``*.json`` → ``stage3_experiments/logs/``  (then prints fold summary)
     * ``*.pt``   → ``stage3_experiments/checkpoints/``
 
     Other file types are logged but not moved.
+
+    Args:
+        files:        List of paths returned by ``fetch_outputs``.
+        no_overwrite: When ``True``, skip any destination file that already
+                      exists rather than overwriting it.  Use this when
+                      re-running the same experiment to avoid clobbering an
+                      earlier result.
     """
     log_dir = _STAGE3_ROOT / "logs"
     ckpt_dir = _STAGE3_ROOT / "checkpoints"
@@ -545,11 +571,17 @@ def route_outputs(files: list[Path]) -> None:
     for f in files:
         if f.suffix == ".json":
             dest = log_dir / f.name
+            if no_overwrite and dest.exists():
+                _log(f"  log  (skip — exists) {dest.relative_to(_PROJECT_ROOT)}")
+                continue
             shutil.copy2(f, dest)
             _log(f"  log  → {dest.relative_to(_PROJECT_ROOT)}")
             _print_fold_summary(dest)
         elif f.suffix == ".pt":
             dest = ckpt_dir / f.name
+            if no_overwrite and dest.exists():
+                _log(f"  ckpt (skip — exists) {dest.relative_to(_PROJECT_ROOT)}")
+                continue
             shutil.copy2(f, dest)
             _log(f"  ckpt → {dest.relative_to(_PROJECT_ROOT)}")
         else:
@@ -699,14 +731,18 @@ def run_bridge(
     config_path: Path,
     enable_gpu: bool,
     kernel_slug: str | None = None,
+    no_overwrite: bool = False,
 ) -> bool:
     """Execute the full bridge round-trip for one experiment config.
 
     Args:
-        config_path: Path to the experiment config JSON.
-        enable_gpu:  Whether to request a Kaggle GPU accelerator.
-        kernel_slug: Kaggle kernel slug override.  Defaults to the
-                     experiment ``name`` field, truncated to 50 chars.
+        config_path:  Path to the experiment config JSON.
+        enable_gpu:   Whether to request a Kaggle GPU accelerator.
+        kernel_slug:  Kaggle kernel slug override.  Defaults to the
+                      experiment ``name`` field, truncated to 50 chars.
+        no_overwrite: When ``True``, existing files in ``logs/`` and
+                      ``checkpoints/`` are not overwritten.  Use this
+                      when re-running the same experiment.
 
     Returns:
         ``True`` if the kernel completed successfully and outputs were
@@ -720,7 +756,7 @@ def run_bridge(
     _log(f"Slug:       {slug}")
     _log(f"GPU:        {enable_gpu}")
 
-    api = authenticate()
+    authenticate()
     username = _kaggle_username()
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="pathogems_kaggle_"))
@@ -745,10 +781,10 @@ def run_bridge(
         )
 
         # 4. Push the entire temp dir (notebook + source tarball + metadata).
-        kernel_ref = push_kernel(api, tmp_dir)
+        kernel_ref = push_kernel(tmp_dir)
 
         # 5. Wait for Kaggle to finish executing the notebook.
-        final_status = wait_for_completion(api, kernel_ref)
+        final_status = wait_for_completion(kernel_ref)
         _log(f"Kernel finished: {final_status}")
 
         if final_status != "complete":
@@ -761,10 +797,10 @@ def run_bridge(
         # 6. Download the outputs the notebook staged in /kaggle/working/outputs/.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = _STAGE3_ROOT / "kaggle_outputs" / f"{slug}_{timestamp}"
-        files = fetch_outputs(api, kernel_ref, output_dir)
+        files = fetch_outputs(kernel_ref, output_dir)
 
         # 7. Route JSON logs → logs/, .pt files → checkpoints/.
-        route_outputs(files)
+        route_outputs(files, no_overwrite=no_overwrite)
 
         _log(f"Done. Run log in {(_STAGE3_ROOT / 'logs').relative_to(_PROJECT_ROOT)}")
         return True
@@ -823,6 +859,15 @@ def main() -> None:
             "No quota is consumed."
         ),
     )
+    p.add_argument(
+        "--no-overwrite",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip output files that already exist in logs/ and checkpoints/. "
+            "Use this when re-running the same experiment to keep the original results."
+        ),
+    )
     args = p.parse_args()
 
     config_path = Path(args.config)
@@ -841,6 +886,7 @@ def main() -> None:
             config_path=config_path,
             enable_gpu=args.gpu,
             kernel_slug=args.slug,
+            no_overwrite=args.no_overwrite,
         )
     sys.exit(0 if ok else 1)
 
