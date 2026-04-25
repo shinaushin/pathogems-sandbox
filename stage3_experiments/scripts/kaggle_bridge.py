@@ -202,8 +202,23 @@ print(f"Working dir: {os.getcwd()}")
 _CELL_INSTALL_DEPS = """\
 # Install additional dependencies not pre-installed on Kaggle.
 # torch / numpy / pandas / scipy are already available in the base image.
+#
+# Requires internet access — if this cell fails with a DNS / connection error,
+# your Kaggle account needs phone verification:
+#   https://www.kaggle.com/settings/account → Phone Verification
 import subprocess
 import sys
+import urllib.request
+
+# Quick connectivity check before spending 3+ min on retries.
+try:
+    urllib.request.urlopen("https://pypi.org", timeout=5)
+except Exception as _e:
+    raise RuntimeError(
+        "No internet access in this kernel. "
+        "Verify your phone at https://www.kaggle.com/settings/account "
+        "to enable internet in Kaggle kernels."
+    ) from _e
 
 _extra = ["scikit-survival>=0.22", "lifelines>=0.28"]
 for _pkg in _extra:
