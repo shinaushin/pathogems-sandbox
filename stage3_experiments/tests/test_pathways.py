@@ -18,7 +18,6 @@ import torch
 
 from pathogems.pathways import _download_gmt, _parse_gmt, build_connectivity, load_gene_sets
 
-
 # --------------------------------------------------------------------------- #
 # Tiny GMT fixture
 # --------------------------------------------------------------------------- #
