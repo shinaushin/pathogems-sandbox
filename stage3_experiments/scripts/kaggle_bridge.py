@@ -227,6 +227,8 @@ def upload_brca_dataset(
         (tmp_path / "dataset-metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Copy all files from data_dir (skip subdirectories).
+        # Do NOT use --dir-mode zip: zipped files land as archive.zip and
+        # individual data files are not directly accessible in the kernel.
         n_files = 0
         total_bytes = 0
         for f in sorted(data_dir.iterdir()):
@@ -237,20 +239,37 @@ def upload_brca_dataset(
         _log(f"  {n_files} files  ({total_bytes:,} bytes)")
 
         # Try create first; if the dataset already exists, push a new version.
-        result = _kaggle_cmd("datasets", "create", "-p", str(tmp_path), "--dir-mode", "zip")
+        result = _kaggle_cmd("datasets", "create", "-p", str(tmp_path))
         if result.returncode != 0 and "already exists" in (result.stderr + result.stdout).lower():
             _log("  Dataset already exists — pushing a new version…")
             result = _kaggle_cmd(
                 "datasets", "version",
                 "-p", str(tmp_path),
                 "-m", "Updated by kaggle_bridge.py",
-                "--dir-mode", "zip",
             )
         if result.returncode != 0:
             raise RuntimeError(
                 f"Dataset upload failed (exit {result.returncode}):\n"
                 f"{result.stderr or result.stdout}"
             )
+
+    # Kaggle processes uploaded datasets asynchronously. Poll until the dataset
+    # reports at least one file before pushing the kernel so the mount is ready.
+    _log("  Waiting for Kaggle to process the dataset…")
+    wait_secs = 0
+    max_wait = 300  # 5 minutes should be more than enough for ~100 MB
+    while wait_secs < max_wait:
+        check = _kaggle_cmd("datasets", "files", ref)
+        if check.returncode == 0 and ref.split("/")[-1] in (check.stdout + check.stderr).lower():
+            break
+        # Also accept a non-empty files listing as the ready signal.
+        if check.returncode == 0 and check.stdout.strip():
+            break
+        time.sleep(10)
+        wait_secs += 10
+        _log(f"    still processing… ({wait_secs}s)")
+    else:
+        _log("  WARNING: dataset may not be ready yet — proceeding anyway.")
 
     _log(f"  Dataset ready → https://www.kaggle.com/datasets/{ref}")
     return ref
