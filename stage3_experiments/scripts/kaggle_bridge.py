@@ -79,7 +79,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 # Set via KAGGLE_USERNAME env var, or override the constant here.
-_DEFAULT_USERNAME = "your_kaggle_username"
+_DEFAULT_USERNAME = "profileurlplz"
 
 #: Seconds between status polls while waiting for the kernel to finish.
 POLL_INTERVAL_SEC = 30
