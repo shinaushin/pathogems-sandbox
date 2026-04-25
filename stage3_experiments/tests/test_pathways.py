@@ -16,7 +16,7 @@ from unittest import mock
 import pytest
 import torch
 
-from pathogems.pathways import build_connectivity, _download_gmt, load_gene_sets, _parse_gmt
+from pathogems.pathways import _download_gmt, _parse_gmt, build_connectivity, load_gene_sets
 
 
 # --------------------------------------------------------------------------- #
