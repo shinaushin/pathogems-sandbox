@@ -497,7 +497,7 @@ def _make_config_cell(config: dict) -> str:
         "import json",
         "from pathlib import Path",
         "",
-        f"_CONFIG = {config_json!r}",
+        f"_CONFIG = json.loads({config_json!r})",
         "_CONFIG_PATH = Path('/tmp/run_config.json')",
         "_CONFIG_PATH.write_text(json.dumps(_CONFIG))",
         'print(f"Config written → {_CONFIG_PATH}")',
