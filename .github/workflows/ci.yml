@@ -37,7 +37,9 @@ jobs:
       - name: Ruff format check
         run: ruff format --check --diff --config stage3_experiments/pyproject.toml stage3_experiments/
       - name: Ruff lint
-        run: ruff check --config stage3_experiments/pyproject.toml stage3_experiments/
+        # --diff shows a unified diff for every auto-fixable violation (e.g. I001
+        # import ordering) so CI output tells you exactly what to change.
+        run: ruff check --diff --config stage3_experiments/pyproject.toml stage3_experiments/
 
   # ---------------------------------------------------------------------------
   # 2. Type check
