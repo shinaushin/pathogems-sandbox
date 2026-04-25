@@ -40,6 +40,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import logging
 import os
@@ -229,37 +230,51 @@ for _pkg in _extra:
 print("Extra deps installed:", _extra)
 """
 
-_CELL_INSTALL_PATHOGEMS = """\
-# Extract the bundled source tarball and install pathogems in editable mode.
-import shutil
-import subprocess
-import sys
-import tarfile
-from pathlib import Path
+def _make_install_pathogems_cell(src_tarball: Path) -> str:
+    """Return a notebook cell that decodes and installs pathogems from a tarball.
 
-_tar = Path("/kaggle/working/pathogems_src.tar.gz")
-_dst = Path("/tmp/pathogems_src")
+    The tarball bytes are base64-encoded and embedded directly in the cell
+    source so the notebook is fully self-contained — no file upload required.
 
-if _dst.exists():
-    shutil.rmtree(_dst)
-_dst.mkdir(parents=True)
+    Args:
+        src_tarball: Path to the locally-built ``pathogems_src.tar.gz``.
 
-with tarfile.open(_tar, "r:gz") as tf:
-    tf.extractall(_dst)
-
-result = subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-e", str(_dst)],
-    capture_output=True,
-    text=True,
-)
-if result.returncode != 0:
-    print("STDERR:", result.stderr[-2000:])
-    raise RuntimeError("pathogems install failed")
-
-import importlib
-importlib.import_module("pathogems")
-print("pathogems installed and importable")
-"""
+    Returns:
+        Python source string for the notebook cell.
+    """
+    b64 = base64.b64encode(src_tarball.read_bytes()).decode("ascii")
+    return (
+        "# Decode and install the bundled pathogems source (embedded as base64).\n"
+        "import base64\n"
+        "import importlib\n"
+        "import shutil\n"
+        "import subprocess\n"
+        "import sys\n"
+        "import tarfile\n"
+        "from pathlib import Path\n"
+        "\n"
+        f"_B64 = {b64!r}\n"
+        "_tar = Path('/tmp/pathogems_src.tar.gz')\n"
+        "_tar.write_bytes(base64.b64decode(_B64))\n"
+        "_dst = Path('/tmp/pathogems_src')\n"
+        "if _dst.exists():\n"
+        "    shutil.rmtree(_dst)\n"
+        "_dst.mkdir(parents=True)\n"
+        "with tarfile.open(_tar, 'r:gz') as _tf:\n"
+        "    _tf.extractall(_dst)\n"
+        "\n"
+        "result = subprocess.run(\n"
+        "    [sys.executable, '-m', 'pip', 'install', '-q', '-e', str(_dst)],\n"
+        "    capture_output=True,\n"
+        "    text=True,\n"
+        ")\n"
+        "if result.returncode != 0:\n"
+        "    print('STDERR:', result.stderr[-2000:])\n"
+        "    raise RuntimeError('pathogems install failed')\n"
+        "\n"
+        "importlib.import_module('pathogems')\n"
+        "print('pathogems installed and importable')\n"
+    )
 
 # URLs mirror fetch_cbioportal_brca.py so the download logic stays in sync.
 _STUDY_ID = "brca_tcga_pan_can_atlas_2018"
@@ -404,12 +419,18 @@ print(f"\\nOutputs ready in {_OUT}")
 # ---------------------------------------------------------------------------
 
 
-def build_notebook(config: dict) -> nbformat.NotebookNode:
+def build_notebook(config: dict, src_tarball: Path) -> nbformat.NotebookNode:
     """Assemble the Kaggle training notebook from the cell templates.
 
+    The pathogems source tarball is base64-encoded and embedded directly in
+    the notebook so it is fully self-contained — Kaggle only executes the
+    ``.ipynb`` file; other files in the push folder are not accessible at
+    runtime.
+
     Args:
-        config: Experiment config dict (will have ``study_data_dir`` patched
-                to the Kaggle-local data path before embedding).
+        config:      Experiment config dict (will have ``study_data_dir``
+                     patched to the Kaggle-local data path before embedding).
+        src_tarball: Path to the locally-built ``pathogems_src.tar.gz``.
 
     Returns:
         A ``nbformat.NotebookNode`` ready to be written to disk.
@@ -418,7 +439,7 @@ def build_notebook(config: dict) -> nbformat.NotebookNode:
     nb.cells = [
         new_code_cell(_CELL_SETUP),
         new_code_cell(_CELL_INSTALL_DEPS),
-        new_code_cell(_CELL_INSTALL_PATHOGEMS),
+        new_code_cell(_make_install_pathogems_cell(src_tarball)),
         new_code_cell(_CELL_FETCH_DATA),
         new_code_cell(_make_config_cell(config)),
         new_code_cell(_CELL_TRAIN),
@@ -674,7 +695,7 @@ def dry_run(
     nb_name = f"{slug}.ipynb"
     nb_path = out_dir / nb_name
     try:
-        nb = build_notebook(config)
+        nb = build_notebook(config, src_tarball=tar_path)
         nbformat.write(nb, nb_path)
         n_cells = len(nb.cells)
         results.append(("notebook", True, f"{nb_name}  ({n_cells} cells)"))
@@ -776,11 +797,12 @@ def run_bridge(
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="pathogems_kaggle_"))
     try:
-        # 1. Bundle the pathogems source so the kernel can install it.
-        _bundle_source(tmp_dir / "pathogems_src.tar.gz")
+        # 1. Bundle the pathogems source (will be embedded in the notebook).
+        tar_path = tmp_dir / "pathogems_src.tar.gz"
+        _bundle_source(tar_path)
 
-        # 2. Build and write the training notebook.
-        nb = build_notebook(config)
+        # 2. Build and write the training notebook (tarball embedded as base64).
+        nb = build_notebook(config, src_tarball=tar_path)
         nb_name = f"{slug}.ipynb"
         nb_path = tmp_dir / nb_name
         nbformat.write(nb, nb_path)
