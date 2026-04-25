@@ -61,6 +61,6 @@ dependencies:
       # kagglehub handles the new token format; kaggle is still required for
       # kernel push / poll / fetch.  nbformat converts the training script
       # into a Jupyter notebook for the Kaggle kernel API.
-      - kaggle>=1.6,<2.0
+      - kaggle>=1.6,<2.0      # v2 removed KaggleApiExtended; bridge requires v1.x
       - kagglehub>=0.3,<1.0
       - nbformat>=5.9,<6.0

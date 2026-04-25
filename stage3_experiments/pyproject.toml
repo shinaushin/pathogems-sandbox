@@ -31,7 +31,7 @@ dependencies = [
 # Requires two packages because kagglehub handles the new token format
 # while kaggle (the older package) is still needed for kernel push/poll/fetch.
 kaggle = [
-  "kaggle>=1.6",          # kernel push / poll / fetch via KaggleApiExtended
+  "kaggle>=1.6,<2.0",     # kernel push / poll / fetch via KaggleApiExtended (v2 removed this class)
   "kagglehub>=0.3",       # new token auth (reads KAGGLE_API_TOKEN or ~/.kaggle/access_token)
   "nbformat>=5.9",        # converts the training config + source into a .ipynb
 ]
