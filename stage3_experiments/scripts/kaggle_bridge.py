@@ -83,6 +83,9 @@ except ImportError:
 # Set via KAGGLE_USERNAME env var, or override the constant here.
 _DEFAULT_USERNAME = "profileurlplz"
 
+#: Kaggle Dataset slug used when uploading BRCA data via ``--data-dir``.
+_DEFAULT_DATASET_SLUG = "tcga-brca-pan-cancer-atlas"
+
 #: Seconds between status polls while waiting for the kernel to finish.
 POLL_INTERVAL_SEC = 30
 
@@ -183,6 +186,74 @@ def _bundle_source(dest_tar: Path) -> None:
         tf.add(_STAGE3_ROOT / "src", arcname="src")
         tf.add(_STAGE3_ROOT / "pyproject.toml", arcname="pyproject.toml")
     _log(f"  source tarball: {dest_tar.stat().st_size:,} bytes")
+
+
+def upload_brca_dataset(
+    data_dir: Path,
+    username: str,
+    dataset_slug: str = _DEFAULT_DATASET_SLUG,
+) -> str:
+    """Upload or update the local BRCA data directory as a Kaggle Dataset.
+
+    Creates the dataset on first run; updates the version on subsequent runs.
+    The dataset will be available inside kernels at
+    ``/kaggle/input/<dataset_slug>/``.
+
+    Args:
+        data_dir:     Local directory containing the cBioPortal study files.
+        username:     Kaggle username (owner of the dataset).
+        dataset_slug: Kaggle-safe dataset slug.
+
+    Returns:
+        Dataset reference string ``"<username>/<dataset_slug>"`` for use in
+        kernel metadata ``dataset_sources``.
+
+    Raises:
+        RuntimeError: If the dataset push fails.
+    """
+    ref = f"{username}/{dataset_slug}"
+    _log(f"Uploading BRCA data as Kaggle Dataset '{ref}'…")
+    _log(f"  source: {data_dir}")
+
+    with tempfile.TemporaryDirectory(prefix="pathogems_dataset_") as tmp:
+        tmp_path = Path(tmp)
+
+        # Write dataset metadata.
+        meta = {
+            "title": "TCGA-BRCA Pan Cancer Atlas 2018",
+            "id": ref,
+            "licenses": [{"name": "CC0-1.0"}],
+        }
+        (tmp_path / "dataset-metadata.json").write_text(json.dumps(meta, indent=2))
+
+        # Copy all files from data_dir (skip subdirectories).
+        n_files = 0
+        total_bytes = 0
+        for f in sorted(data_dir.iterdir()):
+            if f.is_file():
+                shutil.copy2(f, tmp_path / f.name)
+                n_files += 1
+                total_bytes += f.stat().st_size
+        _log(f"  {n_files} files  ({total_bytes:,} bytes)")
+
+        # Try create first; if the dataset already exists, push a new version.
+        result = _kaggle_cmd("datasets", "create", "-p", str(tmp_path), "--dir-mode", "zip")
+        if result.returncode != 0 and "already exists" in (result.stderr + result.stdout).lower():
+            _log("  Dataset already exists — pushing a new version…")
+            result = _kaggle_cmd(
+                "datasets", "version",
+                "-p", str(tmp_path),
+                "-m", "Updated by kaggle_bridge.py",
+                "--dir-mode", "zip",
+            )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Dataset upload failed (exit {result.returncode}):\n"
+                f"{result.stderr or result.stdout}"
+            )
+
+    _log(f"  Dataset ready → https://www.kaggle.com/datasets/{ref}")
+    return ref
 
 
 # ---------------------------------------------------------------------------
@@ -291,57 +362,107 @@ _BRCA_URLS = [
     f"https://cbioportal-datahub.s3.amazonaws.com/{_STUDY_ID}.tar.gz",
 ]
 
-_CELL_FETCH_DATA = (
-    "# Download TCGA-BRCA omics + clinical data from cBioPortal.\n"
-    "import shutil\n"
-    "import tarfile\n"
-    "import urllib.request\n"
-    "from pathlib import Path\n"
-    "\n"
-    "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
-    "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
-    "\n"
-    "_EXPECTED = [\n"
-    "    'data_mrna_seq_v2_rsem.txt',\n"
-    "    'data_clinical_patient.txt',\n"
-    "    'data_clinical_sample.txt',\n"
-    "]\n"
-    "\n"
-    "if all((_DATA_DIR / f).exists() for f in _EXPECTED):\n"
-    "    print('BRCA data already present — skipping download.')\n"
-    "else:\n"
-    "    _URLS = " + repr(_BRCA_URLS) + "\n"
-    "    _ok = False\n"
-    "    for _url in _URLS:\n"
-    "        try:\n"
-    "            print(f'Trying {_url} ...')\n"
-    "            _archive = _DATA_DIR / 'brca.tar.gz'\n"
-    "            urllib.request.urlretrieve(_url, _archive)\n"
-    "            with tarfile.open(_archive, 'r:gz') as _tf:\n"
-    "                _tf.extractall(_DATA_DIR)\n"
-    "            # cBioPortal archives nest files inside a sub-directory.\n"
-    "            _subdirs = [d for d in _DATA_DIR.iterdir() if d.is_dir()]\n"
-    "            for _sub in _subdirs:\n"
-    "                for _f in _sub.iterdir():\n"
-    "                    shutil.move(str(_f), _DATA_DIR / _f.name)\n"
-    "                shutil.rmtree(_sub)\n"
-    "            _archive.unlink(missing_ok=True)\n"
-    "            _ok = True\n"
-    "            print('Download complete.')\n"
-    "            break\n"
-    "        except Exception as _e:\n"
-    "            print(f'  failed: {_e}')\n"
-    "    if not _ok:\n"
-    "        raise RuntimeError(\n"
-    "            'All download URLs failed. '\n"
-    "            'Check internet access or download manually.'\n"
-    "        )\n"
-    "\n"
-    "_present = [f for f in _EXPECTED if (_DATA_DIR / f).exists()]\n"
-    "print(f'Data files present ({len(_present)}/{len(_EXPECTED)}): {_present}')\n"
-    "assert len(_present) == len(_EXPECTED), "
-    "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
-)
+def _make_fetch_data_cell(dataset_slug: str | None = None) -> str:
+    """Return the notebook cell that makes BRCA data available in the kernel.
+
+    If ``dataset_slug`` is given the cell copies files from the pre-uploaded
+    Kaggle Dataset at ``/kaggle/input/<dataset_slug>/`` — no network download
+    needed.  Otherwise it falls back to the cBioPortal URL list.
+
+    Args:
+        dataset_slug: Kaggle Dataset slug (the part after the username), or
+                      ``None`` to use URL download.
+
+    Returns:
+        Python source string for the notebook cell.
+    """
+    if dataset_slug:
+        return (
+            "# Copy BRCA data from the pre-uploaded Kaggle Dataset.\n"
+            "import shutil\n"
+            "from pathlib import Path\n"
+            "\n"
+            f"_DATASET_INPUT = Path('/kaggle/input/{dataset_slug}')\n"
+            "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
+            "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
+            "\n"
+            "_EXPECTED = [\n"
+            "    'data_mrna_seq_v2_rsem.txt',\n"
+            "    'data_clinical_patient.txt',\n"
+            "    'data_clinical_sample.txt',\n"
+            "]\n"
+            "\n"
+            "if all((_DATA_DIR / f).exists() for f in _EXPECTED):\n"
+            "    print('BRCA data already present — skipping copy.')\n"
+            "else:\n"
+            "    if not _DATASET_INPUT.exists():\n"
+            "        raise RuntimeError(\n"
+            f"            f'Dataset not mounted: {{_DATASET_INPUT}}. '\n"
+            "            'Check that the dataset is listed in kernel dataset_sources.'\n"
+            "        )\n"
+            "    for _f in _DATASET_INPUT.iterdir():\n"
+            "        if _f.is_file():\n"
+            "            shutil.copy2(_f, _DATA_DIR / _f.name)\n"
+            "    print(f'Copied from {_DATASET_INPUT}')\n"
+            "\n"
+            "_present = [f for f in _EXPECTED if (_DATA_DIR / f).exists()]\n"
+            "print(f'Data files present ({len(_present)}/{len(_EXPECTED)}): {_present}')\n"
+            "assert len(_present) == len(_EXPECTED), "
+            "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
+        )
+
+    # Fall back to URL download.
+    return (
+        "# Download TCGA-BRCA omics + clinical data from cBioPortal.\n"
+        "import shutil\n"
+        "import tarfile\n"
+        "import urllib.request\n"
+        "from pathlib import Path\n"
+        "\n"
+        "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
+        "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
+        "\n"
+        "_EXPECTED = [\n"
+        "    'data_mrna_seq_v2_rsem.txt',\n"
+        "    'data_clinical_patient.txt',\n"
+        "    'data_clinical_sample.txt',\n"
+        "]\n"
+        "\n"
+        "if all((_DATA_DIR / f).exists() for f in _EXPECTED):\n"
+        "    print('BRCA data already present — skipping download.')\n"
+        "else:\n"
+        "    _URLS = " + repr(_BRCA_URLS) + "\n"
+        "    _ok = False\n"
+        "    for _url in _URLS:\n"
+        "        try:\n"
+        "            print(f'Trying {_url} ...')\n"
+        "            _archive = _DATA_DIR / 'brca.tar.gz'\n"
+        "            urllib.request.urlretrieve(_url, _archive)\n"
+        "            with tarfile.open(_archive, 'r:gz') as _tf:\n"
+        "                _tf.extractall(_DATA_DIR)\n"
+        "            # cBioPortal archives nest files inside a sub-directory.\n"
+        "            _subdirs = [d for d in _DATA_DIR.iterdir() if d.is_dir()]\n"
+        "            for _sub in _subdirs:\n"
+        "                for _f in _sub.iterdir():\n"
+        "                    shutil.move(str(_f), _DATA_DIR / _f.name)\n"
+        "                shutil.rmtree(_sub)\n"
+        "            _archive.unlink(missing_ok=True)\n"
+        "            _ok = True\n"
+        "            print('Download complete.')\n"
+        "            break\n"
+        "        except Exception as _e:\n"
+        "            print(f'  failed: {_e}')\n"
+        "    if not _ok:\n"
+        "        raise RuntimeError(\n"
+        "            'All download URLs failed. '\n"
+        "            'Check internet access or download manually.'\n"
+        "        )\n"
+        "\n"
+        "_present = [f for f in _EXPECTED if (_DATA_DIR / f).exists()]\n"
+        "print(f'Data files present ({len(_present)}/{len(_EXPECTED)}): {_present}')\n"
+        "assert len(_present) == len(_EXPECTED), "
+        "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
+    )
 
 
 def _make_config_cell(config: dict) -> str:
@@ -426,7 +547,11 @@ print(f"\\nOutputs ready in {_OUT}")
 # ---------------------------------------------------------------------------
 
 
-def build_notebook(config: dict, src_tarball: Path) -> nbformat.NotebookNode:
+def build_notebook(
+    config: dict,
+    src_tarball: Path,
+    dataset_slug: str | None = None,
+) -> nbformat.NotebookNode:
     """Assemble the Kaggle training notebook from the cell templates.
 
     The pathogems source tarball is base64-encoded and embedded directly in
@@ -435,9 +560,12 @@ def build_notebook(config: dict, src_tarball: Path) -> nbformat.NotebookNode:
     runtime.
 
     Args:
-        config:      Experiment config dict (will have ``study_data_dir``
-                     patched to the Kaggle-local data path before embedding).
-        src_tarball: Path to the locally-built ``pathogems_src.tar.gz``.
+        config:       Experiment config dict (will have ``study_data_dir``
+                      patched to the Kaggle-local data path before embedding).
+        src_tarball:  Path to the locally-built ``pathogems_src.tar.gz``.
+        dataset_slug: If provided, the data cell copies from
+                      ``/kaggle/input/<dataset_slug>/`` instead of downloading
+                      from the internet.
 
     Returns:
         A ``nbformat.NotebookNode`` ready to be written to disk.
@@ -447,7 +575,7 @@ def build_notebook(config: dict, src_tarball: Path) -> nbformat.NotebookNode:
         new_code_cell(_CELL_SETUP),
         new_code_cell(_CELL_INSTALL_DEPS),
         new_code_cell(_make_install_pathogems_cell(src_tarball)),
-        new_code_cell(_CELL_FETCH_DATA),
+        new_code_cell(_make_fetch_data_cell(dataset_slug)),
         new_code_cell(_make_config_cell(config)),
         new_code_cell(_CELL_TRAIN),
         new_code_cell(_CELL_COLLECT_OUTPUTS),
@@ -471,6 +599,7 @@ def _write_kernel_metadata(
     notebook_filename: str,
     enable_gpu: bool,
     username: str,
+    dataset_sources: list[str] | None = None,
 ) -> None:
     metadata = {
         "id": f"{username}/{kernel_slug}",
@@ -482,7 +611,7 @@ def _write_kernel_metadata(
         "enable_gpu": enable_gpu,
         "enable_tpu": False,
         "enable_internet": True,
-        "dataset_sources": [],
+        "dataset_sources": dataset_sources or [],
         "competition_sources": [],
         "kernel_sources": [],
         "model_sources": [],
@@ -775,6 +904,7 @@ def run_bridge(
     enable_gpu: bool,
     kernel_slug: str | None = None,
     no_overwrite: bool = False,
+    data_dir: Path | None = None,
 ) -> bool:
     """Execute the full bridge round-trip for one experiment config.
 
@@ -786,6 +916,10 @@ def run_bridge(
         no_overwrite: When ``True``, existing files in ``logs/`` and
                       ``checkpoints/`` are not overwritten.  Use this
                       when re-running the same experiment.
+        data_dir:     Local directory containing the cBioPortal study files.
+                      When provided, uploads the data as a Kaggle Dataset so
+                      the kernel can access it without downloading from the
+                      internet (cBioPortal URLs are unreliable on Kaggle).
 
     Returns:
         ``True`` if the kernel completed successfully and outputs were
@@ -802,6 +936,14 @@ def run_bridge(
     authenticate()
     username = _kaggle_username()
 
+    # Optionally upload the local data directory as a Kaggle Dataset.
+    dataset_ref: str | None = None
+    if data_dir is not None:
+        if not data_dir.is_dir():
+            _log(f"ERROR: --data-dir does not exist: {data_dir}")
+            return False
+        dataset_ref = upload_brca_dataset(data_dir, username)
+
     tmp_dir = Path(tempfile.mkdtemp(prefix="pathogems_kaggle_"))
     try:
         # 1. Bundle the pathogems source (will be embedded in the notebook).
@@ -809,7 +951,10 @@ def run_bridge(
         _bundle_source(tar_path)
 
         # 2. Build and write the training notebook (tarball embedded as base64).
-        nb = build_notebook(config, src_tarball=tar_path)
+        #    Pass dataset_slug so the data cell uses the uploaded dataset instead
+        #    of trying to download from cBioPortal URLs (which are unreliable).
+        dataset_slug = dataset_ref.split("/")[-1] if dataset_ref else None
+        nb = build_notebook(config, src_tarball=tar_path, dataset_slug=dataset_slug)
         nb_name = f"{slug}.ipynb"
         nb_path = tmp_dir / nb_name
         nbformat.write(nb, nb_path)
@@ -822,6 +967,7 @@ def run_bridge(
             notebook_filename=nb_name,
             enable_gpu=enable_gpu,
             username=username,
+            dataset_sources=[dataset_ref] if dataset_ref else [],
         )
 
         # 4. Push the entire temp dir (notebook + source tarball + metadata).
@@ -912,6 +1058,20 @@ def main() -> None:
             "Use this when re-running the same experiment to keep the original results."
         ),
     )
+    p.add_argument(
+        "--data-dir",
+        default=None,
+        type=Path,
+        help=(
+            "Local directory containing the cBioPortal study files "
+            "(data_mrna_seq_v2_rsem.txt, data_clinical_patient.txt, etc.). "
+            "When provided, the directory is uploaded as a Kaggle Dataset "
+            f"(slug: {_DEFAULT_DATASET_SLUG!r}) so the kernel can access it "
+            "without downloading from cBioPortal, which is unreliable from Kaggle. "
+            "The dataset is created on first use and updated on subsequent runs. "
+            "Ignored when --dry-run is set."
+        ),
+    )
     args = p.parse_args()
 
     config_path = Path(args.config)
@@ -931,6 +1091,7 @@ def main() -> None:
             enable_gpu=args.gpu,
             kernel_slug=args.slug,
             no_overwrite=args.no_overwrite,
+            data_dir=args.data_dir,
         )
     sys.exit(0 if ok else 1)
 
