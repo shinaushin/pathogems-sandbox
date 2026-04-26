@@ -399,104 +399,108 @@ _BRCA_URLS = [
 def _make_fetch_data_cell(dataset_slug: str | None = None) -> str:
     """Return the notebook cell that makes BRCA data available in the kernel.
 
-    If ``dataset_slug`` is given the cell copies files from the pre-uploaded
-    Kaggle Dataset at ``/kaggle/input/<dataset_slug>/`` — no network download
-    needed.  Otherwise it falls back to the cBioPortal URL list.
+    Strategy (in priority order):
+      1. If ``dataset_slug`` is given, try ``/kaggle/input/<dataset_slug>/``.
+      2. Auto-discover any mounted directory in ``/kaggle/input/`` that
+         already contains the expected BRCA files (handles Kaggle renaming
+         the mount path or a slug mismatch).
+      3. Fall back to URL download from cBioPortal.
+
+    Always prints the contents of ``/kaggle/input/`` for diagnostics so
+    mount issues are visible in the kernel log.
 
     Args:
         dataset_slug: Kaggle Dataset slug (the part after the username), or
-                      ``None`` to use URL download.
+                      ``None`` to skip the direct-path attempt.
 
     Returns:
         Python source string for the notebook cell.
     """
-    if dataset_slug:
-        return (
-            "# Copy BRCA data from the pre-uploaded Kaggle Dataset.\n"
-            "import shutil\n"
-            "from pathlib import Path\n"
-            "\n"
-            f"_DATASET_INPUT = Path('/kaggle/input/{dataset_slug}')\n"
-            "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
-            "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
-            "\n"
-            "_EXPECTED = [\n"
-            "    'data_mrna_seq_v2_rsem.txt',\n"
-            "    'data_clinical_patient.txt',\n"
-            "    'data_clinical_sample.txt',\n"
-            "]\n"
-            "\n"
-            "if all((_DATA_DIR / f).exists() for f in _EXPECTED):\n"
-            "    print('BRCA data already present — skipping copy.')\n"
-            "else:\n"
-            "    if not _DATASET_INPUT.exists():\n"
-            "        raise RuntimeError(\n"
-            f"            f'Dataset not mounted: {{_DATASET_INPUT}}. '\n"
-            "            'Check that the dataset is listed in kernel dataset_sources.'\n"
-            "        )\n"
-            "    for _f in _DATASET_INPUT.iterdir():\n"
-            "        if _f.is_file():\n"
-            "            shutil.copy2(_f, _DATA_DIR / _f.name)\n"
-            "    print(f'Copied from {_DATASET_INPUT}')\n"
-            "\n"
-            "_present = [f for f in _EXPECTED if (_DATA_DIR / f).exists()]\n"
-            "print(f'Data files present ({len(_present)}/{len(_EXPECTED)}): {_present}')\n"
-            "assert len(_present) == len(_EXPECTED), "
-            "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
-        )
-
-    # Fall back to URL download.
+    slug_line = f"_DATASET_SLUG = {dataset_slug!r}\n" if dataset_slug else "_DATASET_SLUG = None\n"
     return (
-        "# Download TCGA-BRCA omics + clinical data from cBioPortal.\n"
+        "# Fetch BRCA data: try Kaggle Dataset mount first, fall back to URL.\n"
+        "import os\n"
         "import shutil\n"
         "import tarfile\n"
         "import urllib.request\n"
         "from pathlib import Path\n"
         "\n"
-        "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
-        "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
-        "\n"
+        + slug_line
+        + "\n"
         "_EXPECTED = [\n"
         "    'data_mrna_seq_v2_rsem.txt',\n"
         "    'data_clinical_patient.txt',\n"
         "    'data_clinical_sample.txt',\n"
         "]\n"
+        "_DATA_DIR = Path('/kaggle/working/brca_data')\n"
+        "_DATA_DIR.mkdir(parents=True, exist_ok=True)\n"
+        "\n"
+        "# Always print what Kaggle has mounted for diagnostics.\n"
+        "_input_root = Path('/kaggle/input')\n"
+        "_mounted = sorted(_input_root.iterdir()) if _input_root.exists() else []\n"
+        "print(f'/kaggle/input/ contains {len(_mounted)} entr(ies):')\n"
+        "for _d in _mounted:\n"
+        "    _files = [f.name for f in _d.iterdir() if f.is_file()] if _d.is_dir() else []\n"
+        "    print(f'  {_d.name}/  ({len(_files)} files)')\n"
         "\n"
         "if all((_DATA_DIR / f).exists() for f in _EXPECTED):\n"
-        "    print('BRCA data already present — skipping download.')\n"
+        "    print('BRCA data already present — skipping fetch.')\n"
         "else:\n"
-        "    _URLS = " + repr(_BRCA_URLS) + "\n"
-        "    _ok = False\n"
-        "    for _url in _URLS:\n"
-        "        try:\n"
-        "            print(f'Trying {_url} ...')\n"
-        "            _archive = _DATA_DIR / 'brca.tar.gz'\n"
-        "            urllib.request.urlretrieve(_url, _archive)\n"
-        "            with tarfile.open(_archive, 'r:gz') as _tf:\n"
-        "                _tf.extractall(_DATA_DIR)\n"
-        "            # cBioPortal archives nest files inside a sub-directory.\n"
-        "            _subdirs = [d for d in _DATA_DIR.iterdir() if d.is_dir()]\n"
-        "            for _sub in _subdirs:\n"
-        "                for _f in _sub.iterdir():\n"
-        "                    shutil.move(str(_f), _DATA_DIR / _f.name)\n"
-        "                shutil.rmtree(_sub)\n"
-        "            _archive.unlink(missing_ok=True)\n"
-        "            _ok = True\n"
-        "            print('Download complete.')\n"
-        "            break\n"
-        "        except Exception as _e:\n"
-        "            print(f'  failed: {_e}')\n"
-        "    if not _ok:\n"
-        "        raise RuntimeError(\n"
-        "            'All download URLs failed. '\n"
-        "            'Check internet access or download manually.'\n"
-        "        )\n"
+        "    _src = None\n"
+        "\n"
+        "    # 1. Try the expected slug path.\n"
+        "    if _DATASET_SLUG and (_input_root / _DATASET_SLUG).exists():\n"
+        "        _src = _input_root / _DATASET_SLUG\n"
+        "        print(f'Using mounted dataset: {_src}')\n"
+        "\n"
+        "    # 2. Auto-discover: scan /kaggle/input/ for any dir with our files.\n"
+        "    if _src is None:\n"
+        "        for _d in _mounted:\n"
+        "            if _d.is_dir() and all((_d / f).exists() for f in _EXPECTED):\n"
+        "                _src = _d\n"
+        "                print(f'Auto-discovered dataset at: {_src}')\n"
+        "                break\n"
+        "\n"
+        "    if _src is not None:\n"
+        "        for _f in _src.iterdir():\n"
+        "            if _f.is_file():\n"
+        "                shutil.copy2(_f, _DATA_DIR / _f.name)\n"
+        "        print(f'Copied {len(list(_DATA_DIR.iterdir()))} files from {_src}')\n"
+        "    else:\n"
+        "        # 3. Fall back to URL download.\n"
+        "        print('Dataset not mounted — falling back to URL download.')\n"
+        "        _URLS = " + repr(_BRCA_URLS) + "\n"
+        "        _ok = False\n"
+        "        for _url in _URLS:\n"
+        "            try:\n"
+        "                print(f'Trying {_url} ...')\n"
+        "                _archive = _DATA_DIR / 'brca.tar.gz'\n"
+        "                urllib.request.urlretrieve(_url, _archive)\n"
+        "                with tarfile.open(_archive, 'r:gz') as _tf:\n"
+        "                    _tf.extractall(_DATA_DIR)\n"
+        "                _subdirs = [d for d in _DATA_DIR.iterdir() if d.is_dir()]\n"
+        "                for _sub in _subdirs:\n"
+        "                    for _f in _sub.iterdir():\n"
+        "                        shutil.move(str(_f), _DATA_DIR / _f.name)\n"
+        "                    shutil.rmtree(_sub)\n"
+        "                _archive.unlink(missing_ok=True)\n"
+        "                _ok = True\n"
+        "                print('Download complete.')\n"
+        "                break\n"
+        "            except Exception as _e:\n"
+        "                print(f'  failed: {_e}')\n"
+        "        if not _ok:\n"
+        "            raise RuntimeError(\n"
+        "                'All data sources failed (dataset not mounted AND all URLs failed). '\n"
+        "                'Re-run the bridge with --data-dir to re-upload the dataset.'\n"
+        "            )\n"
         "\n"
         "_present = [f for f in _EXPECTED if (_DATA_DIR / f).exists()]\n"
         "print(f'Data files present ({len(_present)}/{len(_EXPECTED)}): {_present}')\n"
         "assert len(_present) == len(_EXPECTED), "
         "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
     )
+
 
 
 def _make_config_cell(config: dict) -> str:
