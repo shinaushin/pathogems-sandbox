@@ -256,23 +256,32 @@ def upload_brca_dataset(
                 f"{result.stderr or result.stdout}"
             )
 
-    # Kaggle processes uploaded datasets asynchronously. Poll until the dataset
-    # reports at least one file before pushing the kernel so the mount is ready.
+    # Kaggle processes uploaded datasets asynchronously.  Poll until `kaggle
+    # datasets files` returns at least one actual data file (indicated by a
+    # ".txt" extension in the listing).  Checking for a non-empty output or
+    # for the slug name in the output is not sufficient — Kaggle can return
+    # "still processing" messages before the dataset is mountable in kernels.
     _log("  Waiting for Kaggle to process the dataset…")
     wait_secs = 0
-    max_wait = 300  # 5 minutes should be more than enough for ~100 MB
+    max_wait = 600  # 10 minutes; first-time uploads can take a while
     while wait_secs < max_wait:
         check = _kaggle_cmd("datasets", "files", ref)
-        if check.returncode == 0 and ref.split("/")[-1] in (check.stdout + check.stderr).lower():
+        # The files listing contains actual file names (e.g. "clinical.txt")
+        # once Kaggle has finished indexing.  An earlier "still processing"
+        # state can produce non-empty output without any real file names.
+        if check.returncode == 0 and ".txt" in check.stdout:
             break
-        # Also accept a non-empty files listing as the ready signal.
-        if check.returncode == 0 and check.stdout.strip():
-            break
-        time.sleep(10)
-        wait_secs += 10
+        time.sleep(15)
+        wait_secs += 15
         _log(f"    still processing… ({wait_secs}s)")
     else:
         _log("  WARNING: dataset may not be ready yet — proceeding anyway.")
+
+    # Extra buffer: Kaggle's file-listing being ready does not guarantee the
+    # dataset is immediately mountable inside a new kernel.  A short wait
+    # avoids a race where the kernel starts before the mount is set up.
+    _log("  Pausing 30 s to let Kaggle finish indexing before kernel push…")
+    time.sleep(30)
 
     _log(f"  Dataset ready → https://www.kaggle.com/datasets/{ref}")
     return ref
