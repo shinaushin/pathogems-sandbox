@@ -176,15 +176,37 @@ def authenticate() -> None:
 def _bundle_source(dest_tar: Path) -> None:
     """Create a gzipped tarball of the stage3 package for upload to Kaggle.
 
-    Includes ``stage3_experiments/src/`` (the pathogems package) and
-    ``stage3_experiments/pyproject.toml`` so the kernel can do
-    ``pip install -e .`` without needing network access to PyPI for the
-    pathogems package itself.
+    Includes:
+      * ``stage3_experiments/src/``  — the pathogems package
+      * ``stage3_experiments/pyproject.toml``
+      * ``gene_sets/*.gmt``  — any locally-cached MSigDB GMT files
+
+    Bundling the GMT files means pathway models never need to download them
+    from ``data.broadinstitute.org`` inside the Kaggle kernel (that host is
+    unreliable from Kaggle).  The install cell seeds the kernel cache from
+    this bundle so ``load_gene_sets`` finds them without touching the network.
     """
     _log(f"Bundling source → {dest_tar.name}")
+
+    # Locate locally-cached GMT files (default: ~/.pathogems/gene_sets/).
+    _gmt_cache = Path.home() / ".pathogems" / "gene_sets"
+    gmt_files = list(_gmt_cache.glob("*.gmt")) if _gmt_cache.exists() else []
+
     with tarfile.open(dest_tar, "w:gz") as tf:
         tf.add(_STAGE3_ROOT / "src", arcname="src")
         tf.add(_STAGE3_ROOT / "pyproject.toml", arcname="pyproject.toml")
+        for gmt in gmt_files:
+            tf.add(gmt, arcname=f"gene_sets/{gmt.name}")
+            _log(f"  + gene_sets/{gmt.name}  ({gmt.stat().st_size:,} bytes)")
+
+    if not gmt_files:
+        _log(
+            "  WARNING: no cached GMT files found in "
+            f"{_gmt_cache}. PathwayMLP will attempt to download "
+            "them from broadinstitute.org inside the kernel. "
+            "Run `python -c \"from pathogems.pathways import load_gene_sets; "
+            "load_gene_sets('hallmark')\"` locally to pre-cache."
+        )
     _log(f"  source tarball: {dest_tar.stat().st_size:,} bytes")
 
 
@@ -384,6 +406,18 @@ def _make_install_pathogems_cell(src_tarball: Path) -> str:
         "importlib.invalidate_caches()\n"
         "importlib.import_module('pathogems')\n"
         "print('pathogems installed and importable')\n"
+        "\n"
+        "# Seed the MSigDB GMT cache so pathway models don't need to download\n"
+        "# from broadinstitute.org (unreliable from Kaggle).\n"
+        "_gmt_src = _dst / 'gene_sets'\n"
+        "_gmt_dst = Path.home() / '.pathogems' / 'gene_sets'\n"
+        "if _gmt_src.exists():\n"
+        "    _gmt_dst.mkdir(parents=True, exist_ok=True)\n"
+        "    for _gmt in _gmt_src.glob('*.gmt'):\n"
+        "        shutil.copy2(_gmt, _gmt_dst / _gmt.name)\n"
+        "        print(f'GMT cache seeded: {_gmt.name}')\n"
+        "else:\n"
+        "    print('No bundled GMT files — pathway models will download on demand.')\n"
     )
 
 
