@@ -978,6 +978,7 @@ def run_bridge(
     kernel_slug: str | None = None,
     no_overwrite: bool = False,
     data_dir: Path | None = None,
+    dataset_ref: str | None = None,
 ) -> bool:
     """Execute the full bridge round-trip for one experiment config.
 
@@ -993,11 +994,22 @@ def run_bridge(
                       When provided, uploads the data as a Kaggle Dataset so
                       the kernel can access it without downloading from the
                       internet (cBioPortal URLs are unreliable on Kaggle).
+        dataset_ref:  Already-uploaded Kaggle Dataset ref
+                      (``"<username>/<slug>"``).  Mounts the dataset in the
+                      kernel without re-uploading it.  Use this after a
+                      successful ``--data-dir`` run to avoid pushing a new
+                      dataset version (which needs re-indexing time and can
+                      cause mount failures).  Mutually exclusive with
+                      ``data_dir``.
 
     Returns:
         ``True`` if the kernel completed successfully and outputs were
         routed; ``False`` on kernel error or timeout.
     """
+    if data_dir is not None and dataset_ref is not None:
+        _log("ERROR: --data-dir and --dataset-ref are mutually exclusive.")
+        return False
+
     config = json.loads(config_path.read_text())
     slug = kernel_slug or _make_kernel_slug(config, config_path)
 
@@ -1009,13 +1021,14 @@ def run_bridge(
     authenticate()
     username = _kaggle_username()
 
-    # Optionally upload the local data directory as a Kaggle Dataset.
-    dataset_ref: str | None = None
+    # Resolve dataset ref: upload fresh data, or reuse an existing dataset.
     if data_dir is not None:
         if not data_dir.is_dir():
             _log(f"ERROR: --data-dir does not exist: {data_dir}")
             return False
         dataset_ref = upload_brca_dataset(data_dir, username)
+    elif dataset_ref is not None:
+        _log(f"Reusing existing dataset: {dataset_ref} (skipping upload)")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="pathogems_kaggle_"))
     try:
@@ -1138,10 +1151,24 @@ def main() -> None:
         help=(
             "Local directory containing the cBioPortal study files "
             "(data_mrna_seq_v2_rsem.txt, data_clinical_patient.txt, etc.). "
-            "When provided, the directory is uploaded as a Kaggle Dataset "
-            f"(slug: {_DEFAULT_DATASET_SLUG!r}) so the kernel can access it "
-            "without downloading from cBioPortal, which is unreliable from Kaggle. "
-            "The dataset is created on first use and updated on subsequent runs. "
+            "Uploads the directory as a Kaggle Dataset on every run. "
+            "Use only when the dataset needs to be created or updated. "
+            "For subsequent runs, prefer --dataset-ref to avoid re-uploading. "
+            "Ignored when --dry-run is set."
+        ),
+    )
+    p.add_argument(
+        "--dataset-ref",
+        default=None,
+        help=(
+            "Reference to an already-uploaded Kaggle Dataset in "
+            "\"<username>/<slug>\" form "
+            f"(e.g. \"profileurlplz/{_DEFAULT_DATASET_SLUG}\"). "
+            "Mounts the dataset in the kernel without re-uploading it. "
+            "Use this for every run after the first --data-dir upload to "
+            "avoid pushing a new dataset version (new versions need "
+            "re-indexing time and can cause mount failures). "
+            "Mutually exclusive with --data-dir. "
             "Ignored when --dry-run is set."
         ),
     )
@@ -1165,6 +1192,7 @@ def main() -> None:
             kernel_slug=args.slug,
             no_overwrite=args.no_overwrite,
             data_dir=args.data_dir,
+            dataset_ref=args.dataset_ref,
         )
     sys.exit(0 if ok else 1)
 
