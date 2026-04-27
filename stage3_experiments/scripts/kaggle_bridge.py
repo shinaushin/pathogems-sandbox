@@ -204,7 +204,7 @@ def _bundle_source(dest_tar: Path) -> None:
             "  WARNING: no cached GMT files found in "
             f"{_gmt_cache}. PathwayMLP will attempt to download "
             "them from broadinstitute.org inside the kernel. "
-            "Run `python -c \"from pathogems.pathways import load_gene_sets; "
+            'Run `python -c "from pathogems.pathways import load_gene_sets; '
             "load_gene_sets('hallmark')\"` locally to pre-cache."
         )
     _log(f"  source tarball: {dest_tar.stat().st_size:,} bytes")
@@ -458,9 +458,7 @@ def _make_fetch_data_cell(dataset_slug: str | None = None) -> str:
         "import tarfile\n"
         "import urllib.request\n"
         "from pathlib import Path\n"
-        "\n"
-        + slug_line
-        + "\n"
+        "\n" + slug_line + "\n"
         "_EXPECTED = [\n"
         "    'data_mrna_seq_v2_rsem.txt',\n"
         "    'data_clinical_patient.txt',\n"
@@ -535,7 +533,6 @@ def _make_fetch_data_cell(dataset_slug: str | None = None) -> str:
         "assert len(_present) == len(_EXPECTED), "
         "f'Missing: {set(_EXPECTED) - set(_present)}'\n"
     )
-
 
 
 def _make_config_cell(config: dict) -> str:
@@ -1163,8 +1160,8 @@ def main() -> None:
         default=None,
         help=(
             "Reference to an already-uploaded Kaggle Dataset in "
-            "\"<username>/<slug>\" form "
-            f"(e.g. \"profileurlplz/{_DEFAULT_DATASET_SLUG}\"). "
+            '"<username>/<slug>" form '
+            f'(e.g. "profileurlplz/{_DEFAULT_DATASET_SLUG}"). '
             "Mounts the dataset in the kernel without re-uploading it. "
             "Use this for every run after the first --data-dir upload to "
             "avoid pushing a new dataset version (new versions need "
