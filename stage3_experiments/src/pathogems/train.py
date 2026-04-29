@@ -25,13 +25,15 @@ import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
 from torch import nn
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.optim.swa_utils import AveragedModel, update_bn
 from torch.utils.data import DataLoader, TensorDataset
 
 from .config import ExperimentConfig
 from .data import FoldTensors, SurvivalCohort, build_fold_tensors, cv_splits
 from .loss import LOSS_REGISTRY
 from .metrics import concordance_index
-from .model import MODEL_REGISTRY
+from .models import MODEL_REGISTRY
 from .optimizers import OPTIMIZER_REGISTRY
 
 log = logging.getLogger(__name__)
@@ -176,6 +178,73 @@ def train_one_fold(
     optimizer = OPTIMIZER_REGISTRY.get(config.optimizer)(model.parameters(), config)
     loss_fn = LOSS_REGISTRY.get(config.loss)
 
+    # ------------------------------------------------------------------ #
+    # LR schedule: composable warmup + main schedule
+    #
+    # lr_warmup_epochs > 0: prepend a LinearLR warmup that ramps the LR
+    #   from lr×0.01 → lr over `warmup_epochs` steps.  After warmup the
+    #   main schedule takes over; for cosine its T_max is reduced by the
+    #   warmup epochs so the total budget stays at config.epochs.
+    #
+    # lr_schedule == "cosine": CosineAnnealingLR decaying to lr×0.01.
+    #   T_max covers the post-warmup epochs so the full decay happens in
+    #   the remaining training budget.
+    #
+    # When both are set they are chained with SequentialLR.
+    # ------------------------------------------------------------------ #
+    warmup_epochs = config.lr_warmup_epochs
+    post_warmup_epochs = max(config.epochs - warmup_epochs, 1)
+
+    _schedulers: list = []
+    _milestones: list[int] = []
+
+    if warmup_epochs > 0:
+        _schedulers.append(
+            LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_epochs)
+        )
+        _milestones.append(warmup_epochs)
+
+    if config.lr_schedule == "cosine":
+        _schedulers.append(
+            CosineAnnealingLR(optimizer, T_max=post_warmup_epochs, eta_min=config.lr * 0.01)
+        )
+
+    if len(_schedulers) > 1:
+        scheduler = SequentialLR(optimizer, schedulers=_schedulers, milestones=_milestones)
+    elif len(_schedulers) == 1:
+        scheduler = _schedulers[0]
+    else:
+        scheduler = None
+
+    # ------------------------------------------------------------------ #
+    # SWA: Stochastic Weight Averaging
+    #
+    # When swa_start_fraction > 0, an AveragedModel starts accumulating a
+    # uniform average of model weights from swa_start_epoch onward.
+    # - Early stopping still operates during the pre-SWA phase; if it fires,
+    #   best_state is restored and the SWA phase continues from there.
+    # - During the SWA phase the LR is held at a constant low value
+    #   (lr×0.05) instead of following the main schedule — this is the
+    #   canonical SWA recipe (Izmailov et al., 2018).
+    # - After all epochs, BatchNorm statistics are recalibrated on the
+    #   training data using update_bn before final evaluation.
+    # - If SWA never collects any weights (early stopping fired before
+    #   swa_start_epoch), evaluation falls back to the best-checkpoint
+    #   model as normal.
+    # ------------------------------------------------------------------ #
+    swa_start_epoch: int | None = (
+        max(1, int(config.epochs * config.swa_start_fraction))
+        if config.swa_start_fraction > 0.0
+        else None
+    )
+    swa_model: AveragedModel | None = AveragedModel(model) if swa_start_epoch is not None else None
+    swa_active = False  # True once swa_model.update_parameters() is called at least once
+    swa_lr = config.lr * 0.05
+
+    # Each model declares its own L1 target via RegularizableMixin.regularized_weight.
+    # None means "skip L1 for this architecture" (e.g. GeneAttentionNet).
+    reg_weight = model.regularized_weight if config.l1_weight > 0.0 else None  # type: ignore[union-attr]
+
     best_val = float("inf")
     best_epoch = 0
     best_state: dict[str, torch.Tensor] | None = None
@@ -192,6 +261,9 @@ def train_one_fold(
             optimizer.zero_grad(set_to_none=True)
             risk = model(xb)
             loss = loss_fn(risk, tb, eb)
+            # Optional L1 penalty — target declared by model.regularized_weight.
+            if reg_weight is not None and torch.isfinite(loss):
+                loss = loss + config.l1_weight * reg_weight.abs().sum()
             if torch.isfinite(loss):
                 loss.backward()  # type: ignore[no-untyped-call]
                 # Gradient clipping: Cox PH can produce large gradients
@@ -202,33 +274,90 @@ def train_one_fold(
                     nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
                 optimizer.step()
                 epoch_losses.append(loss.item())
+
+        # SWA weight collection and LR override — must happen before val
+        # so the SWA model's step count is in sync with the epoch count.
+        if swa_start_epoch is not None and epoch >= swa_start_epoch:
+            # Override LR to the constant SWA rate (bypasses the main schedule).
+            for pg in optimizer.param_groups:
+                pg["lr"] = swa_lr
+            assert swa_model is not None
+            swa_model.update_parameters(model)
+            swa_active = True
+        elif scheduler is not None:
+            scheduler.step()
+
         final_train_loss = float(np.mean(epoch_losses)) if epoch_losses else float("nan")
         all_train_losses.append(final_train_loss)
 
-        # Validation
+        # Validation (always on the base model, not the SWA average — SWA
+        # BN stats are only recalibrated at the very end, so mid-training
+        # SWA val loss would be misleading).
         model.eval()
         with torch.no_grad():
             val_loss = loss_fn(model(x_va), t_va, e_va).item()
         all_val_losses.append(val_loss)
 
         epochs_trained = epoch
-        if val_loss < best_val - 1e-6:
-            best_val = val_loss
-            best_epoch = epoch
-            best_state = copy.deepcopy(model.state_dict())
-            no_improve = 0
-        else:
-            no_improve += 1
-            if config.early_stopping_patience > 0 and no_improve >= config.early_stopping_patience:
-                break
 
-    # Restore best weights for test evaluation.
-    if best_state is not None:
-        model.load_state_dict(best_state)
+        # Early stopping only operates before the SWA phase begins.
+        # Once SWA kicks in we want to collect as many diverse checkpoints
+        # as possible (stopping early would give only 1–2 averaged points).
+        in_swa_phase = swa_start_epoch is not None and epoch >= swa_start_epoch
+        if not in_swa_phase:
+            if val_loss < best_val - 1e-6:
+                best_val = val_loss
+                best_epoch = epoch
+                best_state = copy.deepcopy(model.state_dict())
+                no_improve = 0
+            else:
+                no_improve += 1
+                if config.early_stopping_patience > 0 and no_improve >= config.early_stopping_patience:
+                    # Restore best weights, then continue into SWA phase
+                    # (if enabled) from the best-checkpoint starting point.
+                    if best_state is not None:
+                        model.load_state_dict(best_state)
+                    if swa_start_epoch is None:
+                        break  # no SWA — stop here
+                    # SWA phase not yet started: fast-forward into it.
+                    # This re-enters the loop from swa_start_epoch.
+                    log.info(
+                        "fold %d: early stopping at epoch %d; entering SWA phase from epoch %d",
+                        fold_id,
+                        epoch,
+                        swa_start_epoch,
+                    )
+                    # Reset no_improve so the SWA phase always runs to max_epochs.
+                    no_improve = 0
+                    # Jump to the SWA start by continuing the outer loop — the
+                    # swa_start_epoch guard above will catch epochs from here on.
+                    continue
 
-    model.eval()
-    with torch.no_grad():
-        risk_te = model(x_te).cpu().numpy()
+    # ------------------------------------------------------------------ #
+    # Final evaluation
+    # ------------------------------------------------------------------ #
+    if swa_active:
+        # Recalibrate BatchNorm running statistics on the training data.
+        # The SWA model's BN buffers are a weighted average of the
+        # constituent models' buffers, which is not statistically valid;
+        # update_bn runs a forward pass over the training set to fix them.
+        assert swa_model is not None
+        _bn_loader = DataLoader(
+            TensorDataset(x_tr), batch_size=x_tr.shape[0], shuffle=False
+        )
+        update_bn(_bn_loader, swa_model, device=device)
+        swa_model.eval()
+        with torch.no_grad():
+            risk_te = swa_model(x_te).cpu().numpy()
+        log.info("fold %d: using SWA model for evaluation", fold_id)
+    else:
+        # Restore best weights for test evaluation.
+        if best_state is not None:
+            model.load_state_dict(best_state)
+        model.eval()
+        with torch.no_grad():
+            risk_te = model(x_te).cpu().numpy()
+
     c = concordance_index(risk_te, fold.time_test, fold.event_test)
 
     return FoldResult(
@@ -257,7 +386,13 @@ def cross_validate(
     splits = cv_splits(cohort, n_folds=config.n_folds, seed=config.seed)
     folds: list[FoldResult] = []
     for fold_id, (train_idx, test_idx) in enumerate(splits):
-        tensors = build_fold_tensors(cohort, train_idx, test_idx, top_k=config.top_k_genes)
+        tensors = build_fold_tensors(
+            cohort,
+            train_idx,
+            test_idx,
+            top_k=config.top_k_genes,
+            gene_selection=config.gene_selection,
+        )
         result = train_one_fold(tensors, config, fold_id=fold_id, device=device)
         if verbose:
             log.info(

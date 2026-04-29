@@ -566,7 +566,25 @@ from pathlib import Path
 _LOGS_DIR = Path("/kaggle/working/stage3_experiments/logs")
 _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-_device = "cuda" if torch.cuda.is_available() else "cpu"
+# Use CUDA only when the assigned GPU is new enough for the installed PyTorch.
+# PyTorch 2.0+ requires compute capability >= 7.0 (Volta / T4 and newer).
+# Kaggle sometimes assigns a P100 (sm_60, Pascal) which is incompatible —
+# fall back to CPU in that case so the run completes rather than crashing.
+_MIN_CUDA_MAJOR = 7
+_device = "cpu"
+if torch.cuda.is_available():
+    _cap_major, _cap_minor = torch.cuda.get_device_capability(0)
+    _gpu_name = torch.cuda.get_device_name(0)
+    if _cap_major >= _MIN_CUDA_MAJOR:
+        _device = "cuda"
+        print(f"GPU: {_gpu_name} (sm_{_cap_major}{_cap_minor}) — using CUDA")
+    else:
+        print(
+            f"GPU: {_gpu_name} (sm_{_cap_major}{_cap_minor}) is below the "
+            f"sm_{_MIN_CUDA_MAJOR}0 minimum for this PyTorch build — falling back to CPU"
+        )
+else:
+    print("No GPU available — using CPU")
 print(f"Using device: {_device}")
 
 # Call the CLI directly via its Python entry point so stdout/stderr stay
@@ -789,6 +807,42 @@ def _print_fold_summary(log_path: Path) -> None:
     print(f"  {'-'*4}  {'-'*8}  {'-'*9}  {'-'*7}  {'-'*6}")
     print(f"  {'mean':>4}  {mean:>8.4f} ± {std:.4f}  (n_folds={n})")
     print()
+
+
+def _refresh_report(logs_dir: Path) -> None:
+    """Regenerate the HTML experiment report from all logs in *logs_dir*.
+
+    Mirrors the ``_refresh_report`` helper in ``cli.py``.  Called after
+    ``route_outputs`` so the report always reflects the latest Kaggle run.
+    Failure is non-fatal — a warning is printed but ``run_bridge`` still
+    returns ``True`` because a missing report must never hide a good result.
+    """
+    report_script = _STAGE3_ROOT / "scripts" / "experiment_report.py"
+    report_out = _STAGE3_ROOT / "reports" / "experiment_report.html"
+
+    if not report_script.exists():
+        _log(f"WARNING: report script not found at {report_script} — skipping.")
+        return
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(report_script),
+            "--logs-dir",
+            str(logs_dir),
+            "--out",
+            str(report_out),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        _log(f"Report refreshed → {report_out.relative_to(_PROJECT_ROOT)}")
+    else:
+        _log(
+            f"WARNING: report generation failed (exit {proc.returncode}):\n"
+            f"{proc.stderr.strip()}"
+        )
 
 
 def route_outputs(files: list[Path], *, no_overwrite: bool = False) -> None:
@@ -1075,6 +1129,9 @@ def run_bridge(
 
         # 7. Route JSON logs → logs/, .pt files → checkpoints/.
         route_outputs(files, no_overwrite=no_overwrite)
+
+        # 8. Regenerate the HTML experiment report so it reflects this run.
+        _refresh_report(_STAGE3_ROOT / "logs")
 
         _log(f"Done. Run log in {(_STAGE3_ROOT / 'logs').relative_to(_PROJECT_ROOT)}")
         return True

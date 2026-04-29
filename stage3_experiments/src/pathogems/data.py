@@ -446,6 +446,74 @@ def clip_survival_time(
 
 
 # --------------------------------------------------------------------------- #
+# Supervised gene scoring (Cox-concordance)
+# --------------------------------------------------------------------------- #
+def _gene_cox_scores(
+    log_expr: np.ndarray,  # (n_train, n_genes)
+    time: np.ndarray,      # (n_train,)
+    event: np.ndarray,     # (n_train,)
+) -> np.ndarray:
+    """Event-weighted Spearman correlation between each gene and survival time.
+
+    Returns an array of shape ``(n_genes,)`` with values in ``[0, 1]``.
+    Higher score means the gene's expression rank is more concordant with
+    survival-time rank (in either direction — we take the absolute value so
+    both protective and hazardous genes score high).
+
+    Why event-weighted Spearman rather than a full univariate Cox fit?
+        * O(n × g) cost vs O(n² × g) for a concordance-based loop — fast
+          enough to run per fold without adding noticeable wall-clock time.
+        * Weighting by the event indicator concentrates signal on samples with
+          an observed death time. Censored samples contribute no rank signal
+          (their true death time is unknown), so weighting them zero is the
+          correct thing to do.
+
+    Algorithm:
+        1. Convert expression and time to ordinal ranks (1..n).
+        2. Normalise weights to the n_events observed deaths.
+        3. Compute the weighted Pearson correlation on the ranks — that is the
+           weighted Spearman correlation.
+        4. Return the absolute value (direction doesn't matter for selection).
+
+    Args:
+        log_expr: Log₂(RSEM + 1) matrix, already log-transformed.
+        time:     Survival times for the training samples.
+        event:    Event indicators (1 = death observed, 0 = censored).
+
+    Returns:
+        Float64 array of shape (n_genes,), values in [0, 1].
+    """
+    n, g = log_expr.shape
+
+    # Ordinal ranks (1-based) across patients for each gene and for time.
+    g_ranks = np.argsort(np.argsort(log_expr, axis=0), axis=0).astype(np.float64) + 1.0
+    t_ranks = (np.argsort(np.argsort(time)).astype(np.float64) + 1.0)  # (n,)
+
+    # Weight by event — censored samples carry no survival-time signal.
+    w = event.astype(np.float64)
+    w_total = w.sum()
+    if w_total < 1.0:
+        # No events in this fold (degenerate); fall back to uniform weights.
+        w = np.ones(n, dtype=np.float64)
+        w_total = float(n)
+    w_norm = w / w_total  # (n,)
+
+    # Weighted Pearson correlation on the ranks (= weighted Spearman).
+    g_mean = (g_ranks * w_norm[:, None]).sum(axis=0)  # (g,)
+    t_mean = float((t_ranks * w_norm).sum())           # scalar
+    g_dev = g_ranks - g_mean                           # (n, g)
+    t_dev = t_ranks - t_mean                           # (n,)
+
+    cov = (g_dev * t_dev[:, None] * w_norm[:, None]).sum(axis=0)  # (g,)
+    g_var = (g_dev**2 * w_norm[:, None]).sum(axis=0)               # (g,)
+    t_var = float(((t_dev**2) * w_norm).sum())                     # scalar
+
+    denom = np.sqrt(g_var * t_var)
+    safe_denom = np.where(denom < 1e-8, 1.0, denom)
+    return np.abs(cov / safe_denom)  # (g,), values in [0, 1]
+
+
+# --------------------------------------------------------------------------- #
 # Preprocessing (fit-on-train-only)
 # --------------------------------------------------------------------------- #
 @dataclass(slots=True)
@@ -486,15 +554,25 @@ class Preprocessor:
 
     top_k: int
     min_expressed_fraction: float = 0.20
+    gene_selection: str = "variance"
     _selected_genes: list[str] | None = None
     _center: np.ndarray | None = None  # shape (top_k,) — training-fold median per gene
     _scale: np.ndarray | None = None  # shape (top_k,) — training-fold MAD per gene
 
-    def fit(self, expression: pd.DataFrame) -> Self:
+    def fit(
+        self,
+        expression: pd.DataFrame,
+        time: np.ndarray | None = None,
+        event: np.ndarray | None = None,
+    ) -> Self:
         """Fit min-expression filter, gene selector, and robust scaler on training data.
 
         Args:
             expression: DataFrame of raw RSEM values, shape (n_train, n_genes).
+            time: Survival times for the training samples. Required when
+                ``gene_selection="cox"``; ignored otherwise.
+            event: Event indicators (1 = death, 0 = censored) for training
+                samples. Required when ``gene_selection="cox"``; ignored otherwise.
 
         Returns:
             self (for chaining: Preprocessor(top_k=500).fit(expr_train))
@@ -524,9 +602,19 @@ class Preprocessor:
         log_expressed = log_expr[:, expressed_mask]  # (n_train, n_expressed)
         expressed_gene_names = expression.columns[expressed_mask]
 
-        # ---- Step 2: Variance-based gene selection ----
-        gene_var = log_expressed.var(axis=0)  # shape (n_expressed,)
-        top_idx = np.argsort(gene_var)[-self.top_k :][::-1]  # descending variance
+        # ---- Step 2: Gene selection ----
+        if self.gene_selection == "cox":
+            if time is None or event is None:
+                raise ValueError(
+                    "gene_selection='cox' requires `time` and `event` arrays "
+                    "to be passed to fit()."
+                )
+            scores = _gene_cox_scores(log_expressed, time, event)
+            top_idx = np.argsort(scores)[-self.top_k :][::-1]  # descending score
+        else:
+            # Default: variance-based selection.
+            gene_var = log_expressed.var(axis=0)  # shape (n_expressed,)
+            top_idx = np.argsort(gene_var)[-self.top_k :][::-1]  # descending variance
         self._selected_genes = [str(g) for g in expressed_gene_names[top_idx]]
 
         # ---- Step 3: Robust z-score statistics (median / MAD) ----
@@ -597,21 +685,39 @@ def build_fold_tensors(
     train_idx: np.ndarray,
     test_idx: np.ndarray,
     top_k: int,
+    gene_selection: str = "variance",
 ) -> FoldTensors:
     """Fit preprocessing on `train_idx`, apply to both, return numpy tensors.
 
     This is the single entry point the trainer uses per fold — keeping it
     here (rather than inline in the training loop) means leakage is
     impossible from inside `train.py`.
+
+    Args:
+        cohort: The full survival cohort.
+        train_idx: Integer indices into cohort for the training fold.
+        test_idx: Integer indices into cohort for the test fold.
+        top_k: Number of genes to select.
+        gene_selection: "variance" (default) or "cox". See ``Preprocessor``
+            for details. When "cox", survival labels from the training fold
+            are used to rank genes by predictive signal; they are never seen
+            by the test fold even indirectly (selection is fit-only on train).
     """
     expr_train = cohort.expression.iloc[train_idx]
     expr_test = cohort.expression.iloc[test_idx]
-    pre = Preprocessor(top_k=top_k).fit(expr_train)
+    time_train = cohort.time.iloc[train_idx].to_numpy(dtype=np.float64)
+    event_train = cohort.event.iloc[train_idx].to_numpy(dtype=np.float64)
+
+    pre = Preprocessor(top_k=top_k, gene_selection=gene_selection).fit(
+        expr_train,
+        time=time_train if gene_selection == "cox" else None,
+        event=event_train if gene_selection == "cox" else None,
+    )
 
     return FoldTensors(
         x_train=pre.transform(expr_train),
-        time_train=cohort.time.iloc[train_idx].to_numpy(dtype=np.float32),
-        event_train=cohort.event.iloc[train_idx].to_numpy(dtype=np.float32),
+        time_train=time_train.astype(np.float32),
+        event_train=event_train.astype(np.float32),
         x_test=pre.transform(expr_test),
         time_test=cohort.time.iloc[test_idx].to_numpy(dtype=np.float32),
         event_test=cohort.event.iloc[test_idx].to_numpy(dtype=np.float32),

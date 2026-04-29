@@ -42,6 +42,20 @@ def _build_adam(params: Iterable[nn.Parameter], config: ExperimentConfig) -> opt
     return optim.Adam(list(params), lr=config.lr, weight_decay=config.weight_decay)
 
 
+@OPTIMIZER_REGISTRY.register("adamw")
+def _build_adamw(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
+    """Build AdamW with corrected weight decay.
+
+    AdamW decouples the weight-decay penalty from the adaptive gradient
+    scaling, which is the mathematically correct way to do L2 regularisation
+    with Adam.  In vanilla Adam the weight-decay term is divided by the
+    second-moment estimate (v_t), so heavily-updated parameters are decayed
+    less than lightly-updated ones — an unintended interaction that AdamW
+    removes.  Switch to this whenever weight_decay is non-zero.
+    """
+    return optim.AdamW(list(params), lr=config.lr, weight_decay=config.weight_decay)
+
+
 @OPTIMIZER_REGISTRY.register("sgd")
 def _build_sgd(params: Iterable[nn.Parameter], config: ExperimentConfig) -> optim.Optimizer:
     """Build SGD with fixed momentum=0.9 and lr/weight_decay from config.

@@ -13,9 +13,39 @@ arrive only when we have a concrete experiment that requires them.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class PathwayModelConfig:
+    """Grouped view of pathway-model options projected from ``ExperimentConfig``.
+
+    Builders should use ``config.pathway`` rather than accessing individual
+    ``pathway_*`` fields directly.  This makes it obvious which fields belong
+    to which architecture and reduces the diff when pathway options change.
+    """
+
+    db: str
+    cache_dir: str | None
+    only: bool
+    scaled_init: bool
+    residual: bool
+    norm: str
+
+
+@dataclass(frozen=True, slots=True)
+class AttnModelConfig:
+    """Grouped view of attention-model options projected from ``ExperimentConfig``.
+
+    Builders should use ``config.attn`` rather than accessing individual
+    ``attn_*`` fields directly.
+    """
+
+    d_model: int
+    n_heads: int
+    n_layers: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +140,81 @@ class ExperimentConfig:
     pathway_db: str = "hallmark"
     pathway_cache_dir: str | None = None
 
+    # Ablation flags — each targets one known weakness of the base PathwayMLP.
+    # All default to False / "batch" to preserve backward compatibility with
+    # existing configs that do not set them.
+    #
+    # pathway_only: if True, the model filters its input genes to only those
+    #   that appear in at least one pathway (eliminating the UNASSIGNED node).
+    #   top_k_genes should be raised (e.g. 5000) so enough pathway-mapped genes
+    #   survive the variance-based pre-selection.
+    #
+    # pathway_scaled_init: if True, the MaskedLinear weights for each pathway
+    #   node are rescaled by 1/sqrt(n_member_genes) after Kaiming init, giving
+    #   all pathway nodes the same expected pre-activation magnitude regardless
+    #   of pathway size.
+    #
+    # pathway_residual: if True, a dense linear skip connection is added from
+    #   the (filtered) gene inputs directly to the pathway-activation space,
+    #   letting the model bypass the sparse constraint when it is unhelpful.
+    #
+    # pathway_norm: controls the normalisation layer that follows the sparse
+    #   pathway projection.  "batch" (default) → BatchNorm1d; "layer" →
+    #   LayerNorm (normalises across pathway dimension, invariant to batch
+    #   size and pathway-node scale differences); "none" → no normalisation.
+    pathway_only: bool = False
+    pathway_scaled_init: bool = False
+    pathway_residual: bool = False
+    pathway_norm: str = "batch"
+
+    # --- baseline model experiment flags ---
+    # These ablations target the flat-MLP (omics_mlp) and linear-Cox baselines.
+    # Each flag isolates one improvement so results are directly comparable to
+    # the brca_omics_topk1000 reference run (CI ≈ 0.60).
+    #
+    # gene_selection: "variance" (default) selects top-k most variable genes
+    #   in log scale. "cox" ranks genes by event-weighted Spearman correlation
+    #   with survival time, selecting genes that are most predictive of outcome
+    #   rather than merely most variable across patients.
+    #
+    # l1_weight: coefficient for an L1 penalty on the first linear layer's
+    #   weights. 0.0 disables L1 (default). 1e-5 is a mild starting point:
+    #   Cox loss is O(1) and a 1000×128 first layer has ~128k weights at
+    #   O(0.1) magnitude → adds ≈ 0.13 to the loss (controllable sparsity).
+    #
+    # lr_schedule: "constant" keeps lr fixed throughout training (default);
+    #   "cosine" applies CosineAnnealingLR decaying from lr down to lr×0.01
+    #   over `epochs` steps, helping the model settle into a flatter minimum
+    #   in the final phase of training.
+    #
+    # activation: hidden-layer activation function for omics_mlp.
+    #   "relu" (default) uses ReLU with Kaiming init.
+    #   "gelu" uses GELU with Xavier init — standard in transformer FFNs,
+    #   smooth gradient at zero avoids dead-neuron risk.
+    #   "silu" uses SiLU/Swish (x·σ(x)) with Xavier init — non-monotonic,
+    #   empirically strong on image/tabular tasks.
+    #
+    # swa_start_fraction: if > 0, Stochastic Weight Averaging (SWA) kicks in
+    #   after `floor(epochs * swa_start_fraction)` epochs. After that point
+    #   the optimizer LR is held constant at lr×0.05 and an AveragedModel
+    #   accumulates a uniform average of weights each epoch. The SWA model
+    #   replaces the best-checkpoint model for final test evaluation. Early
+    #   stopping still fires in the pre-SWA phase; if it fires before the SWA
+    #   start epoch the SWA phase is still entered from the restored best
+    #   weights. 0.0 (default) disables SWA entirely.
+    #
+    # lr_warmup_epochs: number of linear-warmup epochs prepended to the LR
+    #   schedule. During warmup the LR grows linearly from lr×0.01 to lr.
+    #   After warmup the configured lr_schedule takes over (with T_max
+    #   reduced by warmup_epochs for cosine). 0 disables (default). Typically
+    #   5–15 epochs; stabilises early training when weights are random.
+    gene_selection: str = "variance"
+    l1_weight: float = 0.0
+    lr_schedule: str = "constant"
+    activation: str = "relu"
+    swa_start_fraction: float = 0.0
+    lr_warmup_epochs: int = 0
+
     # --- attention model options ---
     # Used by the `gene_attention` model. Ignored by other architectures.
     # `attn_d_model` must be divisible by `attn_n_heads`.
@@ -134,6 +239,40 @@ class ExperimentConfig:
     # ever rename a field. Bump when we make a backwards-incompatible
     # change and update the loader accordingly.
     config_version: int = 1
+
+    # ---------------------------------------------------------------------- #
+    # Grouped sub-config views (no new data — just named projections)
+    # ---------------------------------------------------------------------- #
+
+    @property
+    def pathway(self) -> PathwayModelConfig:
+        """Pathway-model options as a typed group.
+
+        Use in builders instead of accessing ``config.pathway_*`` fields
+        individually.  The underlying flat fields remain the source of truth
+        for JSON serialization and backward compatibility.
+        """
+        return PathwayModelConfig(
+            db=self.pathway_db,
+            cache_dir=self.pathway_cache_dir,
+            only=self.pathway_only,
+            scaled_init=self.pathway_scaled_init,
+            residual=self.pathway_residual,
+            norm=self.pathway_norm,
+        )
+
+    @property
+    def attn(self) -> AttnModelConfig:
+        """Attention-model options as a typed group.
+
+        Use in builders instead of accessing ``config.attn_*`` fields
+        individually.
+        """
+        return AttnModelConfig(
+            d_model=self.attn_d_model,
+            n_heads=self.attn_n_heads,
+            n_layers=self.attn_n_layers,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-safe dict. Tuples become lists; dataclasses flatten to dicts."""
