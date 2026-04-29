@@ -77,8 +77,8 @@ BENCH_HIGH = 0.68
 
 # Approximate unique gene counts per pathway database (for coverage estimates).
 _DB_UNIQUE_GENES: dict[str, int] = {
-    "hallmark": 4383,   # MSigDB Hallmark v2023 — 50 pathways, 4 383 unique genes
-    "c2_kegg": 7012,    # MSigDB C2 KEGG canonical — 186 pathways, ~7 000 unique genes
+    "hallmark": 4383,  # MSigDB Hallmark v2023 — 50 pathways, 4 383 unique genes
+    "c2_kegg": 7012,  # MSigDB C2 KEGG canonical — 186 pathways, ~7 000 unique genes
 }
 # Approximate coding transcriptome size (used to estimate background coverage).
 _CODING_GENES = 19_000
@@ -171,7 +171,8 @@ def _unstable_folds(loss_curves: dict) -> list[int]:
 def _best_flat_mlp(all_runs: list[dict]) -> dict | None:
     """Return the omics_mlp run with the highest mean C-index, or None."""
     candidates = [
-        r for r in all_runs
+        r
+        for r in all_runs
         if r.get("config", {}).get("model", "omics_mlp") == "omics_mlp"
         and r.get("metrics", {}).get("c_index_mean") is not None
     ]
@@ -276,9 +277,7 @@ def _experiment_commentary(
             verdict = f"is essentially the same as the baseline (Δ{delta:+.4f})"
         else:
             verdict = f"underperforms the baseline by {delta:.4f}"
-        paragraphs.append(
-            f"Mean C-index {ci_mean:.4f} — this {verdict} ({baseline_ci:.4f})."
-        )
+        paragraphs.append(f"Mean C-index {ci_mean:.4f} — this {verdict} ({baseline_ci:.4f}).")
 
     # ------------------------------------------------------------------ #
     # omics_mlp variants                                                  #
@@ -369,15 +368,15 @@ def _experiment_commentary(
         db_genes = _DB_UNIQUE_GENES.get(db, 0)
 
         # Ablation flags for this run.
-        pathway_only    = cfg.get("pathway_only", False)
-        scaled_init     = cfg.get("pathway_scaled_init", False)
-        residual        = cfg.get("pathway_residual", False)
-        norm            = cfg.get("pathway_norm", "batch")
-        is_ablation     = pathway_only or scaled_init or residual or (norm != "batch")
+        pathway_only = cfg.get("pathway_only", False)
+        scaled_init = cfg.get("pathway_scaled_init", False)
+        residual = cfg.get("pathway_residual", False)
+        norm = cfg.get("pathway_norm", "batch")
+        is_ablation = pathway_only or scaled_init or residual or (norm != "batch")
 
         # Find the un-ablated base run for this DB to compare ablations against.
         base_run = _pathway_mlp_base(all_runs, db)
-        base_ci  = (base_run or {}).get("metrics", {}).get("c_index_mean")
+        base_ci = (base_run or {}).get("metrics", {}).get("c_index_mean")
         base_name = (base_run or {}).get("run_name", f"base {db} run")
 
         if not is_ablation:
@@ -418,8 +417,7 @@ def _experiment_commentary(
                 f"its biologically-informed first layer — the sparse structure is undermined "
                 f"by the dense catch-all node that short-circuits it."
                 if best_flat_ci is not None
-                else
-                f"The UNASSIGNED node is the structural weakness: it dominates gradient updates "
+                else f"The UNASSIGNED node is the structural weakness: it dominates gradient updates "
                 f"and prevents the pathway layer from learning genuine biological structure."
             )
 
@@ -666,9 +664,7 @@ def _experiment_commentary(
                     f"TCGA-BRCA's ~900 patients, especially with only {top_k} tokens "
                     f"and mini-batch Cox loss (batch_size={batch_size})"
                 )
-            paragraphs.append(
-                f"On this cohort the model {verdict}."
-            )
+            paragraphs.append(f"On this cohort the model {verdict}.")
         if bad_folds:
             fold_str = ", ".join(f"fold {f}" for f in bad_folds)
             paragraphs.append(

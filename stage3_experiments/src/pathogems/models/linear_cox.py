@@ -60,8 +60,7 @@ class LinearCox(RegularizableMixin, nn.Module):
         """Return risk scores of shape ``(batch,)``."""
         if x.dim() != 2 or x.shape[1] != self.in_features:
             raise ValueError(
-                f"Expected input of shape (batch, {self.in_features}), "
-                f"got {tuple(x.shape)}."
+                f"Expected input of shape (batch, {self.in_features}), " f"got {tuple(x.shape)}."
             )
         return self.linear(x).squeeze(-1)
 

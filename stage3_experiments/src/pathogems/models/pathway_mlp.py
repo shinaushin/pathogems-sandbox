@@ -108,6 +108,10 @@ class PathwayMLP(RegularizableMixin, nn.Module):
         output: (batch,),               float32  (Cox risk scores)
     """
 
+    # register_buffer sets this to a Tensor in pathway_only mode; mypy needs
+    # the class-level annotation to know the attribute is not always None.
+    gene_filter_idx: torch.Tensor | None
+
     def __init__(
         self,
         mask: torch.Tensor,
@@ -251,9 +255,7 @@ def _build_pathway_mlp(
     # --- Resolve normalisation type ---
     raw_norm = pc.norm
     if raw_norm not in ("batch", "layer", "none"):
-        raise ValueError(
-            f"pathway_norm must be 'batch', 'layer', or 'none'; got {raw_norm!r}"
-        )
+        raise ValueError(f"pathway_norm must be 'batch', 'layer', or 'none'; got {raw_norm!r}")
     norm_type = raw_norm if raw_norm != "batch" else ("batch" if config.use_batchnorm else "none")
 
     return PathwayMLP(

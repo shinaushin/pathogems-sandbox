@@ -243,7 +243,7 @@ def train_one_fold(
 
     # Each model declares its own L1 target via RegularizableMixin.regularized_weight.
     # None means "skip L1 for this architecture" (e.g. GeneAttentionNet).
-    reg_weight = model.regularized_weight if config.l1_weight > 0.0 else None  # type: ignore[union-attr]
+    reg_weight = model.regularized_weight if config.l1_weight > 0.0 else None  # type: ignore[attr-defined]
 
     best_val = float("inf")
     best_epoch = 0
@@ -285,7 +285,7 @@ def train_one_fold(
             swa_model.update_parameters(model)
             swa_active = True
         elif scheduler is not None:
-            scheduler.step()
+            scheduler.step()  # type: ignore[no-untyped-call]
 
         final_train_loss = float(np.mean(epoch_losses)) if epoch_losses else float("nan")
         all_train_losses.append(final_train_loss)
@@ -312,7 +312,10 @@ def train_one_fold(
                 no_improve = 0
             else:
                 no_improve += 1
-                if config.early_stopping_patience > 0 and no_improve >= config.early_stopping_patience:
+                if (
+                    config.early_stopping_patience > 0
+                    and no_improve >= config.early_stopping_patience
+                ):
                     # Restore best weights, then continue into SWA phase
                     # (if enabled) from the best-checkpoint starting point.
                     if best_state is not None:
@@ -342,9 +345,7 @@ def train_one_fold(
         # constituent models' buffers, which is not statistically valid;
         # update_bn runs a forward pass over the training set to fix them.
         assert swa_model is not None
-        _bn_loader = DataLoader(
-            TensorDataset(x_tr), batch_size=x_tr.shape[0], shuffle=False
-        )
+        _bn_loader = DataLoader(TensorDataset(x_tr), batch_size=x_tr.shape[0], shuffle=False)
         update_bn(_bn_loader, swa_model, device=device)
         swa_model.eval()
         with torch.no_grad():

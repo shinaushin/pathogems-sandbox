@@ -450,8 +450,8 @@ def clip_survival_time(
 # --------------------------------------------------------------------------- #
 def _gene_cox_scores(
     log_expr: np.ndarray,  # (n_train, n_genes)
-    time: np.ndarray,      # (n_train,)
-    event: np.ndarray,     # (n_train,)
+    time: np.ndarray,  # (n_train,)
+    event: np.ndarray,  # (n_train,)
 ) -> np.ndarray:
     """Event-weighted Spearman correlation between each gene and survival time.
 
@@ -487,7 +487,7 @@ def _gene_cox_scores(
 
     # Ordinal ranks (1-based) across patients for each gene and for time.
     g_ranks = np.argsort(np.argsort(log_expr, axis=0), axis=0).astype(np.float64) + 1.0
-    t_ranks = (np.argsort(np.argsort(time)).astype(np.float64) + 1.0)  # (n,)
+    t_ranks = np.argsort(np.argsort(time)).astype(np.float64) + 1.0  # (n,)
 
     # Weight by event — censored samples carry no survival-time signal.
     w = event.astype(np.float64)
@@ -500,13 +500,13 @@ def _gene_cox_scores(
 
     # Weighted Pearson correlation on the ranks (= weighted Spearman).
     g_mean = (g_ranks * w_norm[:, None]).sum(axis=0)  # (g,)
-    t_mean = float((t_ranks * w_norm).sum())           # scalar
-    g_dev = g_ranks - g_mean                           # (n, g)
-    t_dev = t_ranks - t_mean                           # (n,)
+    t_mean = float((t_ranks * w_norm).sum())  # scalar
+    g_dev = g_ranks - g_mean  # (n, g)
+    t_dev = t_ranks - t_mean  # (n,)
 
     cov = (g_dev * t_dev[:, None] * w_norm[:, None]).sum(axis=0)  # (g,)
-    g_var = (g_dev**2 * w_norm[:, None]).sum(axis=0)               # (g,)
-    t_var = float(((t_dev**2) * w_norm).sum())                     # scalar
+    g_var = (g_dev**2 * w_norm[:, None]).sum(axis=0)  # (g,)
+    t_var = float(((t_dev**2) * w_norm).sum())  # scalar
 
     denom = np.sqrt(g_var * t_var)
     safe_denom = np.where(denom < 1e-8, 1.0, denom)

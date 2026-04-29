@@ -95,13 +95,13 @@ class GeneAttentionNet(RegularizableMixin, nn.Module):
                 f"Expected input of shape (batch, {self.n_genes}), got {tuple(x.shape)}."
             )
         # Build per-gene tokens: (batch, n_genes, d_model)
-        tokens = x.unsqueeze(-1)             # (batch, n_genes, 1)
-        tokens = self.value_proj(tokens)     # (batch, n_genes, d_model)
+        tokens = x.unsqueeze(-1)  # (batch, n_genes, 1)
+        tokens = self.value_proj(tokens)  # (batch, n_genes, d_model)
         tokens = tokens + self.gene_emb.unsqueeze(0)  # broadcast gene identities
 
-        out = self.transformer(tokens)       # (batch, n_genes, d_model)
-        pooled = out.mean(dim=1)             # (batch, d_model)
-        return self.head(pooled).squeeze(-1) # (batch,)
+        out = self.transformer(tokens)  # (batch, n_genes, d_model)
+        pooled = out.mean(dim=1)  # (batch, d_model)
+        return self.head(pooled).squeeze(-1)  # (batch,)
 
     def num_parameters(self) -> int:
         """Return the total number of trainable parameters."""
