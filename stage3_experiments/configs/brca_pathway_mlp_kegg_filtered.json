@@ -1,14 +1,15 @@
 {
-  "name": "brca_pathway_mlp_kegg",
+  "name": "brca_pathway_mlp_kegg_filtered",
   "cohort": "TCGA-BRCA",
   "seed": 20260413,
   "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
   "modalities": [
     "RNA_seq"
   ],
-  "top_k_genes": 3000,
+  "top_k_genes": 5000,
   "model": "pathway_mlp",
   "pathway_db": "c2_kegg",
+  "pathway_only": true,
   "hidden_dims": [
     128,
     32
@@ -28,6 +29,6 @@
   "enable_mlflow": false,
   "mlflow_tracking_uri": null,
   "mlflow_experiment_name": "pathogems",
-  "notes": "PathwayMLP with MSigDB C2 KEGG gene sets (~186 canonical pathways, ~7000 unique genes) instead of Hallmark (~50 pathways, ~4383 genes). At top_k_genes=3000 the Hallmark run assigned only 711/3000 genes (24%). KEGG's broader coverage should assign ~50-60% of the top-3000 genes, giving the MaskedLinear first layer enough structured signal to be competitive with the flat MLP baseline (C-index ~0.601). More pathways also means finer-grained first-layer bottleneck.",
+  "notes": "Ablation 1/4: pathway_only=True eliminates the UNASSIGNED catch-all node by filtering input genes to only those that map to at least one C2 KEGG pathway. top_k raised to 5000 so ~2750 pathway-assigned genes survive the variance pre-selection (~55% of C2 KEGG's 7012 unique genes). Every gene feeding the MaskedLinear is a real pathway member, giving each pathway node a clean, biologically-grounded signal. Baseline for comparison: brca_pathway_mlp_kegg (CI=0.564, top_k=3000, no filtering).",
   "config_version": 1
 }

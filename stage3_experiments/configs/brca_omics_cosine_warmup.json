@@ -1,0 +1,34 @@
+{
+  "name": "brca_omics_cosine_warmup",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 2000,
+  "model": "omics_mlp",
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "lr_schedule": "cosine",
+  "lr_warmup_epochs": 10,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Baseline improvement 10/10: lr_schedule='cosine' with lr_warmup_epochs=10. The LR rises linearly from lr\u00d70.01 (1e-6) to lr (1e-4) over the first 10 epochs, then decays via CosineAnnealingLR from lr to lr\u00d70.01 over the remaining 190 epochs. The warmup addresses a known failure mode of Adam: at initialisation, the second-moment estimate v_t is near zero so the effective step size 1/sqrt(v_t+\u03b5) is large \u2014 if the base LR is also large this can cause destructive updates before the model has accumulated any gradient history. Warmup builds up a meaningful v_t estimate before the full LR is applied. Combined with cosine annealing (shown to be beneficial in brca_omics_cosine_lr), this is the schedule standard in transformer pre-training and increasingly in small supervised models. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "config_version": 1
+}

@@ -1,0 +1,33 @@
+{
+  "name": "brca_omics_swa",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 2000,
+  "model": "omics_mlp",
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "swa_start_fraction": 0.5,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Baseline improvement 8/10: swa_start_fraction=0.5 enables Stochastic Weight Averaging (Izmailov et al., 2018) starting at epoch 100 (50% of 200). From that point the optimizer LR is held at lr\u00d70.05 (5e-6) and an AveragedModel accumulates a uniform average of the weights at each subsequent epoch. SWA finds flatter minima than single-checkpoint training by averaging across the loss landscape's basin, which improves generalisation \u2014 particularly valuable on small cohorts (~900 patients) where the basin is sharp and the best checkpoint is sensitive to fold assignment. Early stopping operates only in the pre-SWA phase (epochs 1\u2013100); if it fires before epoch 100 the model restores its best weights and continues into the SWA phase from that starting point. After the final epoch BatchNorm statistics are recalibrated on the training data (update_bn) before test evaluation. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "config_version": 1
+}

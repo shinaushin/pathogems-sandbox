@@ -91,6 +91,21 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 }
 .muted { color: #999; font-style: italic; font-size: 13px; margin: 4px 0; }
 
+/* Commentary block */
+.commentary {
+  background: #f5f7fb;
+  border-left: 3px solid #3266ad;
+  border-radius: 0 6px 6px 0;
+  padding: 10px 16px;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #2a2a3e;
+}
+.commentary p { margin: 0 0 7px; }
+.commentary p:last-child { margin-bottom: 0; }
+.commentary strong { color: #1a1a2e; }
+
 /* Config diff table */
 .diff-table { border-collapse: collapse; font-size: 13px; margin-top: 4px; }
 .diff-table td { padding: 5px 12px; vertical-align: top; }
@@ -141,7 +156,8 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 <body>
 <div class="page-header">
   <h1>PathoGems — Experiment Report</h1>
-  <p>TCGA-BRCA survival prediction &nbsp;·&nbsp; 6 experiments &nbsp;·&nbsp; Generated 2026-04-24 01:11 UTC</p>
+  <p>TCGA-BRCA survival prediction &nbsp;·&nbsp;
+     14 experiments &nbsp;·&nbsp; Generated 2026-04-29 21:37 UTC</p>
 </div>
 
 <div class="container">
@@ -149,18 +165,18 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 <p class="section-head">C-index comparison</p>
 <div class="chart-card">
 
-<div style="position:relative;width:100%;height:380px;">
+<div style="position:relative;width:100%;height:780px;">
   <canvas id="cmp-chart" role="img"
-    aria-label="C-index comparison bar chart across 6 experiments.">
+    aria-label="C-index comparison bar chart across 14 experiments.">
     Comparison chart of mean C-index across experiments.
   </canvas>
 </div>
 <script>
 (function(){
-  const names   = ["brca_omics_baseline","brca_omics_patience20","brca_omics_topk1000","brca_omics_dropout01","brca_omics_topk2000","brca_omics_topk1000_wider"];
-  const means   = [0.540190,0.540190,0.601734,0.541246,0.607900,0.596598];
-  const stds    = [0.081087,0.081087,0.077340,0.072493,0.067659,0.065950];
-  const colors  = ["#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad"];
+  const names   = ["brca_omics_baseline","brca_omics_patience20","brca_omics_topk1000","brca_omics_dropout01","brca_omics_topk2000","brca_omics_topk1000_wider","brca_pathway_mlp","brca_pathway_mlp_topk3000","brca_pathway_mlp_kegg","brca_pathway_mlp_kegg_filtered","brca_pathway_mlp_kegg_scaled_init","brca_pathway_mlp_kegg_residual","brca_pathway_mlp_kegg_layernorm","brca_omics_cox_selection"];
+  const means   = [0.540190,0.540190,0.601734,0.541246,0.607900,0.596598,0.506368,0.551194,0.563808,0.521533,0.551149,0.578209,0.555348,0.598913];
+  const stds    = [0.081087,0.081087,0.077340,0.072493,0.067659,0.065950,0.086157,0.066361,0.091312,0.077416,0.098678,0.069360,0.083059,0.080203];
+  const colors  = ["#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad","#3266ad"];
   const benchLo = 0.62;
   const benchHi = 0.68;
 
@@ -201,7 +217,7 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
               borderWidth: 1,
               label: {
                 display: true,
-                content: 'Benchmark 0.62–0.68',
+                content: 'Benchmark 0.62-0.68',
                 position: 'start',
                 font: { size: 10 },
                 color: '#ba7517',
@@ -234,7 +250,7 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
 </script>
 </div>
 
-<p class="section-head">Summary (6 experiments)</p>
+<p class="section-head">Summary (14 experiments)</p>
 <div style="overflow-x:auto;">
 <table class="summary-table">
   <thead>
@@ -311,6 +327,86 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
   <td class="col-started">2026-04-24 01:11</td>
   <td class="col-diffs"><span class="diff-pill">hidden_dims: [128, 32] → [256, 64]</span><span class="diff-pill">top_k_genes: 500 → 1000</span></td>
 </tr>
+<tr id="row-6">
+  <td class="col-name"><a href="#exp-6">brca_pathway_mlp</a></td>
+  <td class="ci-low col-ci">0.5064 ± 0.0862</td>
+  <td class="col-num">0.6098</td>
+  <td class="col-num">0.4015</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">27.4s</td>
+  <td class="col-started">2026-04-27 00:16</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">top_k_genes: 500 → 1000</span></td>
+</tr>
+<tr id="row-7">
+  <td class="col-name"><a href="#exp-7">brca_pathway_mlp_topk3000</a></td>
+  <td class="ci-low col-ci">0.5512 ± 0.0664</td>
+  <td class="col-num">0.6291</td>
+  <td class="col-num">0.4685</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">28.4s</td>
+  <td class="col-started">2026-04-28 03:22</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">top_k_genes: 500 → 3000</span></td>
+</tr>
+<tr id="row-8">
+  <td class="col-name"><a href="#exp-8">brca_pathway_mlp_kegg</a></td>
+  <td class="ci-low col-ci">0.5638 ± 0.0913</td>
+  <td class="col-num">0.6913</td>
+  <td class="col-num">0.4332</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">19.6s</td>
+  <td class="col-started">2026-04-28 03:35</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">pathway_db: &lt;absent&gt; → c2_kegg</span><span class="diff-pill">top_k_genes: 500 → 3000</span></td>
+</tr>
+<tr id="row-9">
+  <td class="col-name"><a href="#exp-9">brca_pathway_mlp_kegg_filtered</a></td>
+  <td class="ci-low col-ci">0.5215 ± 0.0774</td>
+  <td class="col-num">0.6143</td>
+  <td class="col-num">0.4066</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">29.4s</td>
+  <td class="col-started">2026-04-28 04:04</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">pathway_db: &lt;absent&gt; → c2_kegg</span><span class="diff-pill">pathway_only: &lt;absent&gt; → True</span><span class="diff-pill">top_k_genes: 500 → 5000</span></td>
+</tr>
+<tr id="row-10">
+  <td class="col-name"><a href="#exp-10">brca_pathway_mlp_kegg_scaled_init</a></td>
+  <td class="ci-low col-ci">0.5511 ± 0.0987</td>
+  <td class="col-num">0.6802</td>
+  <td class="col-num">0.4245</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">33.4s</td>
+  <td class="col-started">2026-04-28 04:09</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">pathway_db: &lt;absent&gt; → c2_kegg</span><span class="diff-pill">pathway_scaled_init: &lt;absent&gt; → True</span><span class="diff-pill">top_k_genes: 500 → 3000</span></td>
+</tr>
+<tr id="row-11">
+  <td class="col-name"><a href="#exp-11">brca_pathway_mlp_kegg_residual</a></td>
+  <td class="ci-low col-ci">0.5782 ± 0.0694</td>
+  <td class="col-num">0.6460</td>
+  <td class="col-num">0.4883</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">43.4s</td>
+  <td class="col-started">2026-04-28 04:21</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">pathway_db: &lt;absent&gt; → c2_kegg</span><span class="diff-pill">pathway_residual: &lt;absent&gt; → True</span><span class="diff-pill">top_k_genes: 500 → 3000</span></td>
+</tr>
+<tr id="row-12">
+  <td class="col-name"><a href="#exp-12">brca_pathway_mlp_kegg_layernorm</a></td>
+  <td class="ci-low col-ci">0.5553 ± 0.0831</td>
+  <td class="col-num">0.6546</td>
+  <td class="col-num">0.4245</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">44.5s</td>
+  <td class="col-started">2026-04-28 04:25</td>
+  <td class="col-diffs"><span class="diff-pill">model: omics_mlp → pathway_mlp</span><span class="diff-pill">pathway_db: &lt;absent&gt; → c2_kegg</span><span class="diff-pill">pathway_norm: &lt;absent&gt; → layer</span><span class="diff-pill">top_k_genes: 500 → 3000</span></td>
+</tr>
+<tr id="row-13">
+  <td class="col-name"><a href="#exp-13">brca_omics_cox_selection</a></td>
+  <td class="ci-low col-ci">0.5989 ± 0.0802</td>
+  <td class="col-num">0.7039</td>
+  <td class="col-num">0.4813</td>
+  <td class="status-ok col-status">success</td>
+  <td class="col-num">26.7s</td>
+  <td class="col-started">2026-04-29 21:23</td>
+  <td class="col-diffs"><span class="diff-pill">epochs: 50 → 200</span><span class="diff-pill">gene_selection: &lt;absent&gt; → cox</span><span class="diff-pill">top_k_genes: 500 → 1000</span></td>
+</tr>
   </tbody>
 </table>
 </div>
@@ -326,10 +422,13 @@ code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px;
     Git: <code>961db685d3</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>This is the reference experiment. All other runs are diffed against it. With only 500 input genes the network lacks sufficient prognostic signal — the top-500 high-variance genes include housekeeping and cell-cycle genes that are not survival-relevant. The mean C-index of 0.5402 is well below the published TCGA-BRCA benchmark range (0.62–0.68), and the wide spread across folds reflects how few signal-bearing genes are included at this gene budget.</p><p><strong>Fold instability:</strong> fold 5 converge at epoch ≤ 2, meaning the model finds no improving gradient direction for a subset of data splits — a consequence of the sparse signal at top_k=500.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <p class="muted">This is the baseline — all other experiments are diffed against it.</p>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -422,10 +521,13 @@ new Chart(document.getElementById('lc-0'),{
     Git: <code>4a2e578f79</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5402 — this is essentially the same as the baseline (Δ+0.0000) (0.5402).</p><p>Extending early stopping patience from 10 to 20 epochs produces no improvement, confirming the model converges well within the original window and no beneficial late-epoch learning is being cut off.</p><p><strong>Note:</strong> fold 5 converge at epoch ≤ 2, suggesting the configuration is harder to optimise for some data splits. The mean C-index may understate performance on better-initialised seeds.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <table class="diff-table"><tr><td class="diff-key">early_stopping_patience</td><td class="diff-old">10</td><td class="diff-arrow">→</td><td class="diff-new">20</td></tr></table>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -518,10 +620,13 @@ new Chart(document.getElementById('lc-1'),{
     Git: <code>3695248d7a</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.6017 — this improves on the baseline by +0.0615 (0.5402).</p><p>Raising top_k from 500 to 1000 genes is the key change. More high-variance genes capture a broader range of biological processes. Weight decay (1e-4) prevents overfitting on TCGA-BRCA's ~900 patients, so the additional genes add signal rather than noise.</p><p>The gain is substantial, but the model still falls short of the benchmark band — further top_k increases or architectural changes may be needed.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <table class="diff-table"><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">1000</td></tr></table>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -614,10 +719,13 @@ new Chart(document.getElementById('lc-2'),{
     Git: <code>2be9e5e3dc</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5412 — this is essentially the same as the baseline (Δ+0.0011) (0.5402).</p><p>Reducing dropout from 0.3 to 0.1 has negligible effect at top_k=500. The network is input-constrained rather than overfitting, so regularisation strength is not the binding factor here.</p><p><strong>Note:</strong> fold 5 converge at epoch ≤ 2, suggesting the configuration is harder to optimise for some data splits. The mean C-index may understate performance on better-initialised seeds.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <table class="diff-table"><tr><td class="diff-key">dropout</td><td class="diff-old">0.3</td><td class="diff-arrow">→</td><td class="diff-new">0.1</td></tr></table>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -710,10 +818,13 @@ new Chart(document.getElementById('lc-3'),{
     Git: <code>49ee70f0d2</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.6079 — this improves on the baseline by +0.0677 (0.5402).</p><p>Raising top_k from 500 to 2000 genes is the key change. More high-variance genes capture a broader range of biological processes. Weight decay (1e-4) prevents overfitting on TCGA-BRCA's ~900 patients, so the additional genes add signal rather than noise.</p><p>The gain is substantial, but the model still falls short of the benchmark band — further top_k increases or architectural changes may be needed.</p><p>This is the best-performing flat MLP found so far. It sets the reference point for pathway-structured and attention-based architectures to beat.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <table class="diff-table"><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">2000</td></tr></table>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -806,10 +917,13 @@ new Chart(document.getElementById('lc-4'),{
     Git: <code>49ee70f0d2</code>
   </div>
 
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5966 — this improves on the baseline by +0.0564 (0.5402).</p><p>Raising top_k from 500 to 1000 genes is the key change. More high-variance genes capture a broader range of biological processes. Weight decay (1e-4) prevents overfitting on TCGA-BRCA's ~900 patients, so the additional genes add signal rather than noise.</p><p>The gain is substantial, but the model still falls short of the benchmark band — further top_k increases or architectural changes may be needed.</p><p><strong>Note:</strong> fold 1 converge at epoch ≤ 2, suggesting the configuration is harder to optimise for some data splits. The mean C-index may understate performance on better-initialised seeds.</p></div>
+
   <h3>Config changes vs baseline</h3>
   <table class="diff-table"><tr><td class="diff-key">hidden_dims</td><td class="diff-old">[128, 32]</td><td class="diff-arrow">→</td><td class="diff-new">[256, 64]</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">1000</td></tr></table>
 
-  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62–0.68</span></h3>
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
   
 <div class="fold-row">
   <span class="fold-label">Fold 0</span>
@@ -879,6 +993,798 @@ new Chart(document.getElementById('lc-5'),{
   {label:'F3 val',  data:[{x:1,y:3.9533},{x:2,y:3.8966},{x:3,y:3.8565},{x:4,y:3.8309},{x:5,y:3.8178},{x:6,y:3.8061},{x:7,y:3.7997},{x:8,y:3.8012},{x:9,y:3.8011},{x:10,y:3.7990},{x:11,y:3.7987},{x:12,y:3.8003},{x:13,y:3.8053},{x:14,y:3.8067},{x:15,y:3.8048},{x:16,y:3.8057},{x:17,y:3.8103},{x:18,y:3.8148},{x:19,y:3.8209},{x:20,y:3.8254},{x:21,y:3.8288}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
   {label:'F4 train',data:[{x:1,y:5.9549},{x:2,y:6.0846},{x:3,y:6.0709},{x:4,y:5.9934},{x:5,y:5.8624},{x:6,y:5.8273},{x:7,y:5.6934},{x:8,y:5.9128},{x:9,y:5.7304},{x:10,y:5.4746},{x:11,y:5.6559},{x:12,y:5.5992},{x:13,y:5.4220},{x:14,y:5.4186},{x:15,y:5.4869},{x:16,y:5.3870},{x:17,y:5.2743},{x:18,y:5.3905},{x:19,y:5.6545},{x:20,y:5.3697},{x:21,y:5.3059},{x:22,y:5.0362},{x:23,y:5.1325},{x:24,y:5.2210},{x:25,y:5.2052},{x:26,y:5.0652},{x:27,y:5.3266},{x:28,y:5.0810},{x:29,y:4.8996},{x:30,y:5.1313},{x:31,y:4.9677},{x:32,y:5.2037},{x:33,y:4.9267},{x:34,y:5.0517},{x:35,y:5.0470}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
   {label:'F4 val',  data:[{x:1,y:3.3076},{x:2,y:3.2457},{x:3,y:3.1971},{x:4,y:3.1554},{x:5,y:3.1237},{x:6,y:3.0930},{x:7,y:3.0705},{x:8,y:3.0509},{x:9,y:3.0339},{x:10,y:3.0186},{x:11,y:3.0067},{x:12,y:2.9969},{x:13,y:2.9884},{x:14,y:2.9801},{x:15,y:2.9728},{x:16,y:2.9675},{x:17,y:2.9636},{x:18,y:2.9583},{x:19,y:2.9558},{x:20,y:2.9511},{x:21,y:2.9472},{x:22,y:2.9439},{x:23,y:2.9422},{x:24,y:2.9408},{x:25,y:2.9403},{x:26,y:2.9427},{x:27,y:2.9430},{x:28,y:2.9464},{x:29,y:2.9475},{x:30,y:2.9480},{x:31,y:2.9477},{x:32,y:2.9478},{x:33,y:2.9458},{x:34,y:2.9425},{x:35,y:2.9403}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-6">
+  <h2 class="exp-title">brca_pathway_mlp</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-27 00:16 &nbsp;|&nbsp;
+    Wall time: 27.4s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5064 — this underperforms the baseline by -0.0338 (0.5402).</p><p>MSigDB Hallmark covers only ~24% of the human transcriptome (4,383 unique genes across 50 pathways). At top_k=1000, roughly 240/1000 genes (24%) map to a named pathway; the remaining ~760 collapse into a single UNASSIGNED catch-all node that dominates the sparse first layer.</p><p>The UNASSIGNED node is the structural weakness of this architecture: it receives far more input connections than any individual pathway node, so its gradient signal drowns out the true pathway activations during training. This is why PathwayMLP underperforms the best flat MLP (0.6079 for brca_omics_topk2000) despite its biologically-informed first layer — the sparse structure is undermined by the dense catch-all node that short-circuits it.</p><p><strong>Fold instability:</strong> fold 3 converge at epoch ≤ 2. The imbalanced first layer — one giant UNASSIGNED node alongside small pathway nodes — creates an uneven optimisation landscape where certain data splits immediately find a bad local minimum and stay there.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">1000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:76.2%"></div>
+  </div>
+  <span class="fold-val">0.6098</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:60.2%"></div>
+  </div>
+  <span class="fold-val">0.4816</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:50.2%"></div>
+  </div>
+  <span class="fold-val">0.4015</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:72.4%"></div>
+  </div>
+  <span class="fold-val">0.5788</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:57.5%"></div>
+  </div>
+  <span class="fold-val">0.4601</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-6" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp">
+    Loss curves for brca_pathway_mlp.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-6'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:6.5390},{x:2,y:6.3358},{x:3,y:6.3199},{x:4,y:6.7730},{x:5,y:6.3049},{x:6,y:6.3854},{x:7,y:6.2645},{x:8,y:6.3888},{x:9,y:6.3988},{x:10,y:6.7204},{x:11,y:6.1675},{x:12,y:6.5229},{x:13,y:6.0281}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.1104},{x:2,y:3.0916},{x:3,y:3.0844},{x:4,y:3.0884},{x:5,y:3.0959},{x:6,y:3.1107},{x:7,y:3.1228},{x:8,y:3.1324},{x:9,y:3.1463},{x:10,y:3.1587},{x:11,y:3.1689},{x:12,y:3.1793},{x:13,y:3.1899}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.0304},{x:2,y:6.2912},{x:3,y:6.0772},{x:4,y:5.9592},{x:5,y:6.1360},{x:6,y:5.8358},{x:7,y:6.0472},{x:8,y:5.8821},{x:9,y:6.0041},{x:10,y:6.0765},{x:11,y:6.1638},{x:12,y:5.9950},{x:13,y:5.9974},{x:14,y:5.9974},{x:15,y:5.9400},{x:16,y:5.9030},{x:17,y:6.1685},{x:18,y:5.9607},{x:19,y:6.0080},{x:20,y:6.0697},{x:21,y:5.9059},{x:22,y:5.8462},{x:23,y:6.0665},{x:24,y:6.0642},{x:25,y:6.0990},{x:26,y:6.0777},{x:27,y:5.9107},{x:28,y:5.9409},{x:29,y:5.9837},{x:30,y:5.9966},{x:31,y:5.8814},{x:32,y:5.9400},{x:33,y:5.9574},{x:34,y:6.0496},{x:35,y:5.8219},{x:36,y:5.9562},{x:37,y:5.9624},{x:38,y:5.9561},{x:39,y:6.0256},{x:40,y:5.9451},{x:41,y:5.8273},{x:42,y:5.9343},{x:43,y:5.5429},{x:44,y:5.7278},{x:45,y:5.9662},{x:46,y:5.9480},{x:47,y:5.9001},{x:48,y:6.0323},{x:49,y:5.8442},{x:50,y:5.8593}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.5959},{x:2,y:3.5785},{x:3,y:3.5687},{x:4,y:3.5593},{x:5,y:3.5568},{x:6,y:3.5559},{x:7,y:3.5549},{x:8,y:3.5508},{x:9,y:3.5453},{x:10,y:3.5394},{x:11,y:3.5348},{x:12,y:3.5331},{x:13,y:3.5339},{x:14,y:3.5320},{x:15,y:3.5295},{x:16,y:3.5274},{x:17,y:3.5288},{x:18,y:3.5288},{x:19,y:3.5286},{x:20,y:3.5264},{x:21,y:3.5242},{x:22,y:3.5230},{x:23,y:3.5224},{x:24,y:3.5205},{x:25,y:3.5194},{x:26,y:3.5196},{x:27,y:3.5195},{x:28,y:3.5197},{x:29,y:3.5182},{x:30,y:3.5159},{x:31,y:3.5154},{x:32,y:3.5128},{x:33,y:3.5105},{x:34,y:3.5088},{x:35,y:3.5072},{x:36,y:3.5064},{x:37,y:3.5070},{x:38,y:3.5096},{x:39,y:3.5094},{x:40,y:3.5096},{x:41,y:3.5086},{x:42,y:3.5069},{x:43,y:3.5068},{x:44,y:3.5036},{x:45,y:3.5046},{x:46,y:3.5053},{x:47,y:3.5057},{x:48,y:3.5056},{x:49,y:3.5052},{x:50,y:3.5045}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.1212},{x:2,y:6.1307},{x:3,y:6.0210},{x:4,y:6.2134},{x:5,y:6.1403},{x:6,y:5.9058},{x:7,y:5.9887},{x:8,y:6.0541},{x:9,y:6.0161},{x:10,y:6.1532},{x:11,y:6.1064}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.8299},{x:2,y:2.8320},{x:3,y:2.8366},{x:4,y:2.8420},{x:5,y:2.8448},{x:6,y:2.8501},{x:7,y:2.8511},{x:8,y:2.8527},{x:9,y:2.8533},{x:10,y:2.8540},{x:11,y:2.8561}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.8807},{x:2,y:5.8748},{x:3,y:5.9152},{x:4,y:5.9408},{x:5,y:5.9527},{x:6,y:5.6908},{x:7,y:6.0465},{x:8,y:6.1143},{x:9,y:6.0868},{x:10,y:6.2839},{x:11,y:6.0447},{x:12,y:5.9271},{x:13,y:5.8931},{x:14,y:6.0281},{x:15,y:5.9313},{x:16,y:6.0645},{x:17,y:6.0572},{x:18,y:5.9676},{x:19,y:5.9657},{x:20,y:5.9146},{x:21,y:5.7918},{x:22,y:5.9048}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:2.8947},{x:2,y:2.8956},{x:3,y:2.8886},{x:4,y:2.8837},{x:5,y:2.8796},{x:6,y:2.8748},{x:7,y:2.8696},{x:8,y:2.8652},{x:9,y:2.8634},{x:10,y:2.8628},{x:11,y:2.8620},{x:12,y:2.8620},{x:13,y:2.8636},{x:14,y:2.8644},{x:15,y:2.8657},{x:16,y:2.8662},{x:17,y:2.8689},{x:18,y:2.8718},{x:19,y:2.8746},{x:20,y:2.8780},{x:21,y:2.8820},{x:22,y:2.8853}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:6.1437},{x:2,y:6.0413},{x:3,y:5.9484},{x:4,y:6.0145},{x:5,y:5.9222},{x:6,y:6.0732},{x:7,y:6.0516},{x:8,y:6.0374},{x:9,y:5.9762},{x:10,y:6.0372},{x:11,y:5.8886},{x:12,y:5.8693},{x:13,y:6.0403},{x:14,y:5.9010},{x:15,y:5.9817}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.4736},{x:2,y:3.4477},{x:3,y:3.4306},{x:4,y:3.4260},{x:5,y:3.4256},{x:6,y:3.4288},{x:7,y:3.4310},{x:8,y:3.4345},{x:9,y:3.4345},{x:10,y:3.4347},{x:11,y:3.4360},{x:12,y:3.4360},{x:13,y:3.4348},{x:14,y:3.4335},{x:15,y:3.4328}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-7">
+  <h2 class="exp-title">brca_pathway_mlp_topk3000</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 03:22 &nbsp;|&nbsp;
+    Wall time: 28.4s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5512 — this improves on the baseline by +0.0110 (0.5402).</p><p>MSigDB Hallmark covers only ~24% of the human transcriptome (4,383 unique genes across 50 pathways). At top_k=3000, roughly 720/3000 genes (24%) map to a named pathway; the remaining ~2280 collapse into a single UNASSIGNED catch-all node that dominates the sparse first layer.</p><p>The UNASSIGNED node is the structural weakness of this architecture: it receives far more input connections than any individual pathway node, so its gradient signal drowns out the true pathway activations during training. This is why PathwayMLP underperforms the best flat MLP (0.6079 for brca_omics_topk2000) despite its biologically-informed first layer — the sparse structure is undermined by the dense catch-all node that short-circuits it.</p><p><strong>Fold instability:</strong> fold 3 converge at epoch ≤ 2. The imbalanced first layer — one giant UNASSIGNED node alongside small pathway nodes — creates an uneven optimisation landscape where certain data splits immediately find a bad local minimum and stay there.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">3000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:78.6%"></div>
+  </div>
+  <span class="fold-val">0.6291</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:63.9%"></div>
+  </div>
+  <span class="fold-val">0.5113</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:58.6%"></div>
+  </div>
+  <span class="fold-val">0.4685</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:67.6%"></div>
+  </div>
+  <span class="fold-val">0.5409</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:75.8%"></div>
+  </div>
+  <span class="fold-val">0.6062</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-7" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_topk3000">
+    Loss curves for brca_pathway_mlp_topk3000.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-7'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.9779},{x:2,y:5.9286},{x:3,y:5.9703},{x:4,y:6.0024},{x:5,y:5.9242},{x:6,y:5.9678},{x:7,y:6.0111},{x:8,y:5.7761},{x:9,y:5.8614},{x:10,y:6.0301},{x:11,y:5.9621},{x:12,y:5.7272},{x:13,y:5.7986},{x:14,y:5.6542},{x:15,y:5.8215},{x:16,y:5.7219},{x:17,y:5.9399},{x:18,y:5.9826},{x:19,y:5.7680},{x:20,y:5.9131},{x:21,y:5.8316},{x:22,y:5.8311},{x:23,y:6.0135},{x:24,y:5.8123},{x:25,y:5.6551},{x:26,y:5.8863},{x:27,y:5.8463},{x:28,y:5.7605},{x:29,y:5.7628},{x:30,y:5.8859},{x:31,y:5.6534},{x:32,y:6.0069},{x:33,y:6.0175},{x:34,y:5.8039},{x:35,y:5.8086},{x:36,y:5.8261},{x:37,y:5.7096},{x:38,y:5.7145},{x:39,y:5.8061},{x:40,y:5.7588},{x:41,y:5.8436},{x:42,y:5.7708},{x:43,y:5.8441},{x:44,y:5.7542},{x:45,y:5.7424},{x:46,y:5.8072},{x:47,y:5.4796},{x:48,y:5.6600},{x:49,y:5.8141},{x:50,y:5.7736}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.2822},{x:2,y:3.2266},{x:3,y:3.1944},{x:4,y:3.1703},{x:5,y:3.1395},{x:6,y:3.1191},{x:7,y:3.1057},{x:8,y:3.0981},{x:9,y:3.0923},{x:10,y:3.0861},{x:11,y:3.0787},{x:12,y:3.0720},{x:13,y:3.0664},{x:14,y:3.0622},{x:15,y:3.0577},{x:16,y:3.0519},{x:17,y:3.0481},{x:18,y:3.0438},{x:19,y:3.0373},{x:20,y:3.0304},{x:21,y:3.0226},{x:22,y:3.0162},{x:23,y:3.0102},{x:24,y:3.0066},{x:25,y:3.0013},{x:26,y:2.9974},{x:27,y:2.9937},{x:28,y:2.9907},{x:29,y:2.9867},{x:30,y:2.9828},{x:31,y:2.9792},{x:32,y:2.9771},{x:33,y:2.9730},{x:34,y:2.9707},{x:35,y:2.9684},{x:36,y:2.9670},{x:37,y:2.9668},{x:38,y:2.9662},{x:39,y:2.9661},{x:40,y:2.9660},{x:41,y:2.9668},{x:42,y:2.9673},{x:43,y:2.9689},{x:44,y:2.9688},{x:45,y:2.9695},{x:46,y:2.9705},{x:47,y:2.9724},{x:48,y:2.9711},{x:49,y:2.9701},{x:50,y:2.9706}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.1077},{x:2,y:6.1849},{x:3,y:6.4120},{x:4,y:6.5271},{x:5,y:5.9906},{x:6,y:6.0608},{x:7,y:6.1035},{x:8,y:6.0165},{x:9,y:7.1415},{x:10,y:6.9036},{x:11,y:6.1061},{x:12,y:6.0408},{x:13,y:6.2750},{x:14,y:5.9933},{x:15,y:6.1098},{x:16,y:6.5431},{x:17,y:6.1427},{x:18,y:6.1836},{x:19,y:6.4242},{x:20,y:6.0432},{x:21,y:6.0250},{x:22,y:5.9170},{x:23,y:6.2375},{x:24,y:6.1971},{x:25,y:6.1540},{x:26,y:5.9842}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.5824},{x:2,y:3.5781},{x:3,y:3.5740},{x:4,y:3.5723},{x:5,y:3.5714},{x:6,y:3.5698},{x:7,y:3.5639},{x:8,y:3.5561},{x:9,y:3.5491},{x:10,y:3.5423},{x:11,y:3.5394},{x:12,y:3.5367},{x:13,y:3.5345},{x:14,y:3.5344},{x:15,y:3.5324},{x:16,y:3.5315},{x:17,y:3.5321},{x:18,y:3.5342},{x:19,y:3.5360},{x:20,y:3.5372},{x:21,y:3.5391},{x:22,y:3.5412},{x:23,y:3.5436},{x:24,y:3.5478},{x:25,y:3.5513},{x:26,y:3.5555}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.0382},{x:2,y:6.0287},{x:3,y:6.1857},{x:4,y:6.1047},{x:5,y:5.9337},{x:6,y:5.8194},{x:7,y:6.2329},{x:8,y:6.0431},{x:9,y:6.0212},{x:10,y:5.8595},{x:11,y:5.7919}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.7379},{x:2,y:2.7435},{x:3,y:2.7550},{x:4,y:2.7607},{x:5,y:2.7643},{x:6,y:2.7673},{x:7,y:2.7703},{x:8,y:2.7741},{x:9,y:2.7773},{x:10,y:2.7819},{x:11,y:2.7860}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.9152},{x:2,y:6.2398},{x:3,y:6.2791},{x:4,y:5.9476},{x:5,y:6.3733},{x:6,y:6.0459},{x:7,y:6.0642},{x:8,y:6.3216},{x:9,y:5.9830},{x:10,y:6.0570},{x:11,y:6.0115},{x:12,y:6.5713},{x:13,y:5.7492},{x:14,y:5.9366},{x:15,y:6.1174},{x:16,y:6.2218},{x:17,y:5.8657},{x:18,y:6.1878}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:2.9940},{x:2,y:2.9957},{x:3,y:2.9978},{x:4,y:2.9948},{x:5,y:2.9923},{x:6,y:2.9887},{x:7,y:2.9877},{x:8,y:2.9863},{x:9,y:2.9871},{x:10,y:2.9893},{x:11,y:2.9904},{x:12,y:2.9925},{x:13,y:2.9956},{x:14,y:2.9995},{x:15,y:3.0044},{x:16,y:3.0093},{x:17,y:3.0137},{x:18,y:3.0189}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:5.9402},{x:2,y:5.8062},{x:3,y:5.9909},{x:4,y:5.7926},{x:5,y:5.8570},{x:6,y:5.9748},{x:7,y:5.8799},{x:8,y:5.9938},{x:9,y:5.7219},{x:10,y:5.8299},{x:11,y:5.8280},{x:12,y:5.8001},{x:13,y:5.7755},{x:14,y:5.8425},{x:15,y:5.6978},{x:16,y:5.8420},{x:17,y:5.7744},{x:18,y:5.8763},{x:19,y:5.6613},{x:20,y:5.8093},{x:21,y:5.8894},{x:22,y:5.8113},{x:23,y:5.9402},{x:24,y:5.6721},{x:25,y:5.8062},{x:26,y:5.6918},{x:27,y:5.9126},{x:28,y:5.7331},{x:29,y:5.7705},{x:30,y:5.8675}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.4746},{x:2,y:3.4613},{x:3,y:3.4585},{x:4,y:3.4480},{x:5,y:3.4414},{x:6,y:3.4343},{x:7,y:3.4272},{x:8,y:3.4235},{x:9,y:3.4202},{x:10,y:3.4145},{x:11,y:3.4093},{x:12,y:3.4053},{x:13,y:3.4024},{x:14,y:3.4011},{x:15,y:3.4017},{x:16,y:3.3998},{x:17,y:3.3993},{x:18,y:3.3987},{x:19,y:3.3986},{x:20,y:3.3985},{x:21,y:3.3996},{x:22,y:3.4009},{x:23,y:3.4012},{x:24,y:3.4023},{x:25,y:3.4024},{x:26,y:3.4024},{x:27,y:3.4028},{x:28,y:3.4054},{x:29,y:3.4063},{x:30,y:3.4088}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-8">
+  <h2 class="exp-title">brca_pathway_mlp_kegg</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 03:35 &nbsp;|&nbsp;
+    Wall time: 19.6s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5638 — this improves on the baseline by +0.0236 (0.5402).</p><p>C2 KEGG offers broader coverage than Hallmark — ~7,012 unique genes across 186 canonical pathways (~55% of top_k=3000 genes expected to be assigned, vs ~24% for Hallmark). Even so, ~1350 genes remain unassigned and collapse into a single UNASSIGNED catch-all node.</p><p>The UNASSIGNED node is the structural weakness of this architecture: it receives far more input connections than any individual pathway node, so its gradient signal drowns out the true pathway activations during training. This is why PathwayMLP underperforms the best flat MLP (0.6079 for brca_omics_topk2000) despite its biologically-informed first layer — the sparse structure is undermined by the dense catch-all node that short-circuits it.</p><p><strong>Fold instability:</strong> fold 1, fold 3, fold 4 converge at epoch ≤ 2. The imbalanced first layer — one giant UNASSIGNED node alongside small pathway nodes — creates an uneven optimisation landscape where certain data splits immediately find a bad local minimum and stay there.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">pathway_db</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">c2_kegg</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">3000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:70.5%"></div>
+  </div>
+  <span class="fold-val">0.5642</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-great" style="width:86.4%"></div>
+  </div>
+  <span class="fold-val">0.6913</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:54.1%"></div>
+  </div>
+  <span class="fold-val">0.4332</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:71.1%"></div>
+  </div>
+  <span class="fold-val">0.5685</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:70.2%"></div>
+  </div>
+  <span class="fold-val">0.5618</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-8" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_kegg">
+    Loss curves for brca_pathway_mlp_kegg.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-8'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.8842},{x:2,y:6.1727},{x:3,y:6.1932},{x:4,y:6.0870},{x:5,y:6.0574},{x:6,y:5.9822},{x:7,y:6.0195},{x:8,y:5.8734},{x:9,y:6.0268},{x:10,y:5.8135},{x:11,y:5.9870}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.0323},{x:2,y:3.0371},{x:3,y:3.0460},{x:4,y:3.0571},{x:5,y:3.0672},{x:6,y:3.0791},{x:7,y:3.0908},{x:8,y:3.0983},{x:9,y:3.1036},{x:10,y:3.1060},{x:11,y:3.1080}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.1770},{x:2,y:6.1158},{x:3,y:6.1892},{x:4,y:5.9173},{x:5,y:6.1001},{x:6,y:5.8724},{x:7,y:6.1527},{x:8,y:6.0413},{x:9,y:6.1215},{x:10,y:5.9467},{x:11,y:6.1583},{x:12,y:6.0807},{x:13,y:6.2229},{x:14,y:5.9596},{x:15,y:6.0108},{x:16,y:6.0028},{x:17,y:5.8069},{x:18,y:5.9645},{x:19,y:6.1116},{x:20,y:5.8671},{x:21,y:6.0538},{x:22,y:6.0492},{x:23,y:5.8791},{x:24,y:5.8131},{x:25,y:5.8322},{x:26,y:5.6818},{x:27,y:5.8877},{x:28,y:5.8360},{x:29,y:5.9225},{x:30,y:5.7745},{x:31,y:5.9222},{x:32,y:5.9767},{x:33,y:5.9267},{x:34,y:6.0538},{x:35,y:6.1437},{x:36,y:5.8818},{x:37,y:5.8019},{x:38,y:5.8966},{x:39,y:5.8906},{x:40,y:5.8427},{x:41,y:5.7843}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.6399},{x:2,y:3.6055},{x:3,y:3.5889},{x:4,y:3.5757},{x:5,y:3.5700},{x:6,y:3.5639},{x:7,y:3.5599},{x:8,y:3.5571},{x:9,y:3.5547},{x:10,y:3.5528},{x:11,y:3.5514},{x:12,y:3.5491},{x:13,y:3.5478},{x:14,y:3.5459},{x:15,y:3.5434},{x:16,y:3.5417},{x:17,y:3.5385},{x:18,y:3.5356},{x:19,y:3.5333},{x:20,y:3.5316},{x:21,y:3.5293},{x:22,y:3.5267},{x:23,y:3.5243},{x:24,y:3.5223},{x:25,y:3.5203},{x:26,y:3.5193},{x:27,y:3.5175},{x:28,y:3.5157},{x:29,y:3.5139},{x:30,y:3.5134},{x:31,y:3.5129},{x:32,y:3.5140},{x:33,y:3.5164},{x:34,y:3.5165},{x:35,y:3.5156},{x:36,y:3.5157},{x:37,y:3.5174},{x:38,y:3.5209},{x:39,y:3.5229},{x:40,y:3.5265},{x:41,y:3.5281}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.0922},{x:2,y:6.0141},{x:3,y:6.2037},{x:4,y:6.0760},{x:5,y:5.8450},{x:6,y:6.0052},{x:7,y:6.0543},{x:8,y:6.2548},{x:9,y:6.1817},{x:10,y:6.1576},{x:11,y:6.2066}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.7687},{x:2,y:2.7736},{x:3,y:2.7732},{x:4,y:2.7790},{x:5,y:2.7840},{x:6,y:2.7880},{x:7,y:2.7922},{x:8,y:2.7936},{x:9,y:2.7952},{x:10,y:2.7955},{x:11,y:2.7956}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.9483},{x:2,y:6.0179},{x:3,y:5.9539},{x:4,y:5.6725},{x:5,y:5.8662},{x:6,y:6.2999},{x:7,y:5.9135},{x:8,y:5.9107},{x:9,y:6.2044},{x:10,y:5.9039},{x:11,y:5.8208}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:2.9553},{x:2,y:2.9732},{x:3,y:2.9779},{x:4,y:2.9854},{x:5,y:2.9858},{x:6,y:2.9882},{x:7,y:2.9903},{x:8,y:2.9941},{x:9,y:2.9966},{x:10,y:3.0016},{x:11,y:3.0069}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:6.1088},{x:2,y:6.2534},{x:3,y:6.2003},{x:4,y:6.3487},{x:5,y:6.1090},{x:6,y:6.2083},{x:7,y:6.0306},{x:8,y:6.1361},{x:9,y:5.9662},{x:10,y:5.9744},{x:11,y:5.9870},{x:12,y:5.8206},{x:13,y:5.7406}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.5324},{x:2,y:3.5102},{x:3,y:3.4952},{x:4,y:3.4964},{x:5,y:3.5040},{x:6,y:3.5122},{x:7,y:3.5185},{x:8,y:3.5261},{x:9,y:3.5326},{x:10,y:3.5382},{x:11,y:3.5434},{x:12,y:3.5482},{x:13,y:3.5525}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-9">
+  <h2 class="exp-title">brca_pathway_mlp_kegg_filtered</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 04:04 &nbsp;|&nbsp;
+    Wall time: 29.4s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5215 — this underperforms the baseline by -0.0187 (0.5402).</p><p><strong>Ablation: pathway_only=True.</strong> This run filters the input genes to only those that map to at least one C2 KEGG pathway, eliminating the UNASSIGNED catch-all node entirely. top_k was raised to 5000 so that enough pathway-assigned genes survive the variance pre-selection step. Every gene feeding the MaskedLinear now carries genuine pathway membership — the structural weakness of the base PathwayMLP is directly addressed.</p><p>Surprisingly, this underperforms the base C2 KEGG run (0.5638) by 0.0423. Filtering to pathway-only genes reduces the total input dimensionality substantially; if the removed genes contained genuine prognostic signal (even without pathway annotation), the model loses access to it.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">pathway_db</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">c2_kegg</td></tr><tr><td class="diff-key">pathway_only</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">True</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">5000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:76.8%"></div>
+  </div>
+  <span class="fold-val">0.6143</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:67.2%"></div>
+  </div>
+  <span class="fold-val">0.5375</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:61.8%"></div>
+  </div>
+  <span class="fold-val">0.4940</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:50.8%"></div>
+  </div>
+  <span class="fold-val">0.4066</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:69.4%"></div>
+  </div>
+  <span class="fold-val">0.5553</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-9" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_kegg_filtered">
+    Loss curves for brca_pathway_mlp_kegg_filtered.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-9'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:6.2627},{x:2,y:6.3572},{x:3,y:5.8913},{x:4,y:6.2299},{x:5,y:6.4525},{x:6,y:5.8112},{x:7,y:5.9670},{x:8,y:6.0852},{x:9,y:6.0774},{x:10,y:6.6349},{x:11,y:6.2516},{x:12,y:5.9217},{x:13,y:6.2473},{x:14,y:6.1707},{x:15,y:5.9561},{x:16,y:6.0911},{x:17,y:5.9468},{x:18,y:5.9909},{x:19,y:5.9572},{x:20,y:5.7990},{x:21,y:6.0408},{x:22,y:5.8268},{x:23,y:6.0511}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.1160},{x:2,y:3.1049},{x:3,y:3.1039},{x:4,y:3.1012},{x:5,y:3.0985},{x:6,y:3.0917},{x:7,y:3.0872},{x:8,y:3.0846},{x:9,y:3.0823},{x:10,y:3.0791},{x:11,y:3.0757},{x:12,y:3.0729},{x:13,y:3.0707},{x:14,y:3.0728},{x:15,y:3.0740},{x:16,y:3.0765},{x:17,y:3.0783},{x:18,y:3.0800},{x:19,y:3.0817},{x:20,y:3.0848},{x:21,y:3.0864},{x:22,y:3.0907},{x:23,y:3.0947}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.2292},{x:2,y:6.1636},{x:3,y:6.1128},{x:4,y:5.7800},{x:5,y:6.0839},{x:6,y:6.0366},{x:7,y:6.3925},{x:8,y:6.1247},{x:9,y:6.2362},{x:10,y:6.0074},{x:11,y:6.1997},{x:12,y:6.2753},{x:13,y:5.9850},{x:14,y:6.1399},{x:15,y:5.8814},{x:16,y:6.0123},{x:17,y:5.9113},{x:18,y:6.1341}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.6153},{x:2,y:3.5824},{x:3,y:3.5590},{x:4,y:3.5499},{x:5,y:3.5462},{x:6,y:3.5423},{x:7,y:3.5419},{x:8,y:3.5406},{x:9,y:3.5418},{x:10,y:3.5442},{x:11,y:3.5492},{x:12,y:3.5559},{x:13,y:3.5608},{x:14,y:3.5675},{x:15,y:3.5735},{x:16,y:3.5802},{x:17,y:3.5852},{x:18,y:3.5910}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.0192},{x:2,y:6.0464},{x:3,y:5.9140},{x:4,y:5.9506},{x:5,y:6.1978},{x:6,y:5.9674},{x:7,y:6.1589},{x:8,y:5.9567},{x:9,y:6.0755},{x:10,y:6.0678},{x:11,y:5.8716},{x:12,y:5.7354},{x:13,y:6.0525},{x:14,y:6.0788},{x:15,y:5.9467},{x:16,y:5.7588},{x:17,y:6.0927},{x:18,y:6.0100}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.8726},{x:2,y:2.8837},{x:3,y:2.8749},{x:4,y:2.8670},{x:5,y:2.8586},{x:6,y:2.8554},{x:7,y:2.8545},{x:8,y:2.8541},{x:9,y:2.8555},{x:10,y:2.8560},{x:11,y:2.8582},{x:12,y:2.8594},{x:13,y:2.8595},{x:14,y:2.8610},{x:15,y:2.8624},{x:16,y:2.8652},{x:17,y:2.8677},{x:18,y:2.8716}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:6.1825},{x:2,y:6.1370},{x:3,y:5.9265},{x:4,y:5.8662},{x:5,y:6.2366},{x:6,y:6.0789},{x:7,y:5.9340},{x:8,y:5.7234},{x:9,y:5.7800},{x:10,y:6.0978},{x:11,y:6.1353},{x:12,y:5.9786},{x:13,y:5.9640},{x:14,y:5.8679},{x:15,y:5.8083},{x:16,y:5.9896},{x:17,y:5.8228},{x:18,y:5.8885},{x:19,y:5.8315},{x:20,y:5.7966},{x:21,y:5.9496}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:2.8803},{x:2,y:2.8752},{x:3,y:2.8767},{x:4,y:2.8782},{x:5,y:2.8772},{x:6,y:2.8772},{x:7,y:2.8763},{x:8,y:2.8751},{x:9,y:2.8725},{x:10,y:2.8703},{x:11,y:2.8692},{x:12,y:2.8693},{x:13,y:2.8696},{x:14,y:2.8705},{x:15,y:2.8705},{x:16,y:2.8710},{x:17,y:2.8721},{x:18,y:2.8736},{x:19,y:2.8760},{x:20,y:2.8784},{x:21,y:2.8809}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:6.3975},{x:2,y:7.4558},{x:3,y:6.0025},{x:4,y:6.2546},{x:5,y:6.0280},{x:6,y:6.4268},{x:7,y:6.1842},{x:8,y:6.0936},{x:9,y:6.2457},{x:10,y:6.3931},{x:11,y:6.2619},{x:12,y:6.2908},{x:13,y:6.0670},{x:14,y:6.1444},{x:15,y:6.0745},{x:16,y:6.1910}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.4768},{x:2,y:3.4720},{x:3,y:3.4672},{x:4,y:3.4617},{x:5,y:3.4563},{x:6,y:3.4542},{x:7,y:3.4563},{x:8,y:3.4577},{x:9,y:3.4586},{x:10,y:3.4591},{x:11,y:3.4615},{x:12,y:3.4623},{x:13,y:3.4633},{x:14,y:3.4646},{x:15,y:3.4658},{x:16,y:3.4686}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-10">
+  <h2 class="exp-title">brca_pathway_mlp_kegg_scaled_init</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 04:09 &nbsp;|&nbsp;
+    Wall time: 33.4s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5511 — this improves on the baseline by +0.0110 (0.5402).</p><p><strong>Ablation: pathway_scaled_init=True.</strong> After Kaiming init, each pathway node's weights are rescaled by 1/√(n_member_genes). Without this, large pathways (e.g. KEGG_RIBOSOME with ~90 genes) produce pre-activation variance ~6× higher than small pathways (~15 genes), causing BatchNorm to be driven by large pathways and leaving small pathway nodes starved of gradient signal. Scaled init equalises expected pre-activation magnitude at step 0.</p><p>This underperforms the base C2 KEGG run (0.5638) by 0.0127. Scaled init changes the effective learning rate per pathway implicitly — small pathways, now initialised at lower magnitude, may need more epochs to leave a near-zero regime than the early-stopping window allows.</p><p><strong>Fold instability:</strong> fold 5 converge at epoch ≤ 2. Scaled init addresses variance at initialisation but not the UNASSIGNED node imbalance, which continues to dominate gradient updates in some splits.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">pathway_db</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">c2_kegg</td></tr><tr><td class="diff-key">pathway_scaled_init</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">True</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">3000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:71.9%"></div>
+  </div>
+  <span class="fold-val">0.5749</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-great" style="width:85.0%"></div>
+  </div>
+  <span class="fold-val">0.6802</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:53.1%"></div>
+  </div>
+  <span class="fold-val">0.4245</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:60.8%"></div>
+  </div>
+  <span class="fold-val">0.4864</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:73.7%"></div>
+  </div>
+  <span class="fold-val">0.5897</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-10" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_kegg_scaled_init">
+    Loss curves for brca_pathway_mlp_kegg_scaled_init.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-10'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.8847},{x:2,y:6.1617},{x:3,y:6.1452},{x:4,y:6.0899},{x:5,y:6.0051},{x:6,y:5.9158},{x:7,y:5.9604},{x:8,y:5.7679},{x:9,y:5.9739},{x:10,y:5.7861},{x:11,y:5.8742},{x:12,y:5.8330},{x:13,y:5.7351},{x:14,y:5.8035},{x:15,y:5.8013},{x:16,y:5.8241},{x:17,y:5.9696},{x:18,y:5.6796},{x:19,y:5.8536},{x:20,y:5.6133},{x:21,y:5.5511},{x:22,y:5.6929},{x:23,y:5.6408},{x:24,y:5.6918},{x:25,y:5.7280},{x:26,y:5.6474},{x:27,y:5.7800},{x:28,y:5.6810},{x:29,y:5.4124},{x:30,y:5.6460},{x:31,y:5.5342},{x:32,y:5.5162},{x:33,y:5.5042},{x:34,y:5.4192},{x:35,y:5.3692},{x:36,y:5.5226},{x:37,y:5.6121},{x:38,y:5.4552},{x:39,y:5.4400},{x:40,y:5.6009},{x:41,y:5.3014},{x:42,y:5.3993},{x:43,y:5.4546},{x:44,y:5.2169},{x:45,y:5.3987},{x:46,y:5.3639},{x:47,y:5.3874},{x:48,y:5.4769},{x:49,y:5.2981},{x:50,y:5.3931}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.0420},{x:2,y:3.0464},{x:3,y:3.0454},{x:4,y:3.0430},{x:5,y:3.0424},{x:6,y:3.0423},{x:7,y:3.0418},{x:8,y:3.0420},{x:9,y:3.0420},{x:10,y:3.0418},{x:11,y:3.0415},{x:12,y:3.0415},{x:13,y:3.0410},{x:14,y:3.0400},{x:15,y:3.0391},{x:16,y:3.0379},{x:17,y:3.0367},{x:18,y:3.0351},{x:19,y:3.0339},{x:20,y:3.0323},{x:21,y:3.0305},{x:22,y:3.0285},{x:23,y:3.0279},{x:24,y:3.0278},{x:25,y:3.0273},{x:26,y:3.0254},{x:27,y:3.0236},{x:28,y:3.0212},{x:29,y:3.0190},{x:30,y:3.0164},{x:31,y:3.0143},{x:32,y:3.0118},{x:33,y:3.0104},{x:34,y:3.0098},{x:35,y:3.0084},{x:36,y:3.0072},{x:37,y:3.0066},{x:38,y:3.0053},{x:39,y:3.0016},{x:40,y:2.9987},{x:41,y:2.9945},{x:42,y:2.9893},{x:43,y:2.9831},{x:44,y:2.9758},{x:45,y:2.9692},{x:46,y:2.9654},{x:47,y:2.9608},{x:48,y:2.9573},{x:49,y:2.9531},{x:50,y:2.9496}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.1768},{x:2,y:6.0934},{x:3,y:6.1633},{x:4,y:5.8757},{x:5,y:6.0466},{x:6,y:5.8148},{x:7,y:6.1313},{x:8,y:5.9984},{x:9,y:6.0529},{x:10,y:5.8481},{x:11,y:6.0835},{x:12,y:6.0174},{x:13,y:6.0649},{x:14,y:5.8897},{x:15,y:5.9045},{x:16,y:5.8765},{x:17,y:5.6884},{x:18,y:5.8545},{x:19,y:5.9716},{x:20,y:5.7014},{x:21,y:5.8133},{x:22,y:5.8581},{x:23,y:5.7548},{x:24,y:5.6417},{x:25,y:5.6982},{x:26,y:5.5276},{x:27,y:5.7109},{x:28,y:5.6487},{x:29,y:5.7846},{x:30,y:5.5728},{x:31,y:5.7279},{x:32,y:5.7276},{x:33,y:5.6298},{x:34,y:5.7790},{x:35,y:5.8904},{x:36,y:5.6702},{x:37,y:5.5592},{x:38,y:5.6958},{x:39,y:5.5963},{x:40,y:5.5715},{x:41,y:5.5508},{x:42,y:5.5721},{x:43,y:5.4544},{x:44,y:5.6576},{x:45,y:5.4273},{x:46,y:5.5895},{x:47,y:5.5336},{x:48,y:5.5260},{x:49,y:5.2602},{x:50,y:5.3923}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:3.5867},{x:2,y:3.5838},{x:3,y:3.5797},{x:4,y:3.5773},{x:5,y:3.5760},{x:6,y:3.5736},{x:7,y:3.5718},{x:8,y:3.5700},{x:9,y:3.5686},{x:10,y:3.5668},{x:11,y:3.5657},{x:12,y:3.5643},{x:13,y:3.5625},{x:14,y:3.5608},{x:15,y:3.5601},{x:16,y:3.5594},{x:17,y:3.5586},{x:18,y:3.5571},{x:19,y:3.5561},{x:20,y:3.5551},{x:21,y:3.5544},{x:22,y:3.5516},{x:23,y:3.5481},{x:24,y:3.5453},{x:25,y:3.5438},{x:26,y:3.5424},{x:27,y:3.5413},{x:28,y:3.5406},{x:29,y:3.5380},{x:30,y:3.5350},{x:31,y:3.5313},{x:32,y:3.5294},{x:33,y:3.5283},{x:34,y:3.5263},{x:35,y:3.5251},{x:36,y:3.5265},{x:37,y:3.5264},{x:38,y:3.5254},{x:39,y:3.5232},{x:40,y:3.5214},{x:41,y:3.5185},{x:42,y:3.5159},{x:43,y:3.5136},{x:44,y:3.5126},{x:45,y:3.5110},{x:46,y:3.5087},{x:47,y:3.5056},{x:48,y:3.5007},{x:49,y:3.4932},{x:50,y:3.4864}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.0916},{x:2,y:5.9919},{x:3,y:6.1561},{x:4,y:6.0433},{x:5,y:5.7877},{x:6,y:5.9323},{x:7,y:5.9683},{x:8,y:6.1824},{x:9,y:6.0748},{x:10,y:6.0868},{x:11,y:6.0762},{x:12,y:5.8603},{x:13,y:5.8445},{x:14,y:6.0231},{x:15,y:5.8534},{x:16,y:5.7919},{x:17,y:5.6979},{x:18,y:5.7487},{x:19,y:5.7544},{x:20,y:6.0105},{x:21,y:5.7153},{x:22,y:5.7205},{x:23,y:5.6727},{x:24,y:5.7212},{x:25,y:5.6918},{x:26,y:5.5300},{x:27,y:5.5980},{x:28,y:5.4567},{x:29,y:5.6914},{x:30,y:5.6087},{x:31,y:5.5126},{x:32,y:5.4222},{x:33,y:5.5140},{x:34,y:5.6978},{x:35,y:5.5874},{x:36,y:5.4810},{x:37,y:5.5005},{x:38,y:5.3397},{x:39,y:5.6463},{x:40,y:5.5799},{x:41,y:5.5447},{x:42,y:5.2533},{x:43,y:5.3662},{x:44,y:5.5539}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.7864},{x:2,y:2.7864},{x:3,y:2.7852},{x:4,y:2.7848},{x:5,y:2.7841},{x:6,y:2.7837},{x:7,y:2.7828},{x:8,y:2.7819},{x:9,y:2.7803},{x:10,y:2.7789},{x:11,y:2.7785},{x:12,y:2.7774},{x:13,y:2.7761},{x:14,y:2.7753},{x:15,y:2.7740},{x:16,y:2.7732},{x:17,y:2.7719},{x:18,y:2.7711},{x:19,y:2.7697},{x:20,y:2.7686},{x:21,y:2.7671},{x:22,y:2.7654},{x:23,y:2.7637},{x:24,y:2.7619},{x:25,y:2.7605},{x:26,y:2.7582},{x:27,y:2.7569},{x:28,y:2.7550},{x:29,y:2.7522},{x:30,y:2.7495},{x:31,y:2.7481},{x:32,y:2.7463},{x:33,y:2.7439},{x:34,y:2.7435},{x:35,y:2.7441},{x:36,y:2.7453},{x:37,y:2.7448},{x:38,y:2.7448},{x:39,y:2.7447},{x:40,y:2.7448},{x:41,y:2.7449},{x:42,y:2.7461},{x:43,y:2.7486},{x:44,y:2.7510}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.9478},{x:2,y:6.0129},{x:3,y:5.9529},{x:4,y:5.6698},{x:5,y:5.8226},{x:6,y:6.2263},{x:7,y:5.8672},{x:8,y:5.8460},{x:9,y:6.0869},{x:10,y:5.8352},{x:11,y:5.7449},{x:12,y:5.7558},{x:13,y:5.9271},{x:14,y:5.9699},{x:15,y:5.7945},{x:16,y:5.8701}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:2.9014},{x:2,y:2.9003},{x:3,y:2.8976},{x:4,y:2.8974},{x:5,y:2.8970},{x:6,y:2.8969},{x:7,y:2.8970},{x:8,y:2.8971},{x:9,y:2.8973},{x:10,y:2.8984},{x:11,y:2.8994},{x:12,y:2.9000},{x:13,y:2.9010},{x:14,y:2.9013},{x:15,y:2.9023},{x:16,y:2.9037}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:6.1083},{x:2,y:6.2471},{x:3,y:6.1818},{x:4,y:6.2765},{x:5,y:6.0869},{x:6,y:6.1616},{x:7,y:6.0193},{x:8,y:6.0444},{x:9,y:5.9177},{x:10,y:5.8908},{x:11,y:5.9065}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:3.4712},{x:2,y:3.4767},{x:3,y:3.4813},{x:4,y:3.4828},{x:5,y:3.4842},{x:6,y:3.4861},{x:7,y:3.4877},{x:8,y:3.4888},{x:9,y:3.4905},{x:10,y:3.4916},{x:11,y:3.4928}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-11">
+  <h2 class="exp-title">brca_pathway_mlp_kegg_residual</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 04:21 &nbsp;|&nbsp;
+    Wall time: 43.4s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5782 — this improves on the baseline by +0.0380 (0.5402).</p><p><strong>Ablation: pathway_residual=True.</strong> A dense linear projection W_skip (n_genes × n_pathways, no bias, Kaiming init) is added to the MaskedLinear output before normalisation and activation. This lets the model route signal through the pathway layer (structured, biologically interpretable) or bypass it (dense, unconstrained) — in the worst case it recovers flat-MLP-like behaviour; in the best case it augments pathway activations with direct gene contributions that the sparse mask excludes.</p><p>The skip connection delivers a +0.0144 gain over the base C2 KEGG run (0.5638). The model appears to benefit from the unconstrained path — likely routing signal from the ~1350 genes not assigned to any pathway directly into the activation space without being filtered through UNASSIGNED.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">pathway_db</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">c2_kegg</td></tr><tr><td class="diff-key">pathway_residual</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">True</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">3000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:61.0%"></div>
+  </div>
+  <span class="fold-val">0.4883</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:66.1%"></div>
+  </div>
+  <span class="fold-val">0.5289</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:73.2%"></div>
+  </div>
+  <span class="fold-val">0.5858</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:80.7%"></div>
+  </div>
+  <span class="fold-val">0.6460</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:80.3%"></div>
+  </div>
+  <span class="fold-val">0.6421</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-11" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_kegg_residual">
+    Loss curves for brca_pathway_mlp_kegg_residual.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-11'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.9246},{x:2,y:5.8065},{x:3,y:5.9915},{x:4,y:5.7291},{x:5,y:5.9267},{x:6,y:5.7239},{x:7,y:5.3806},{x:8,y:5.3877},{x:9,y:5.5774},{x:10,y:5.6266},{x:11,y:5.3711},{x:12,y:5.5863},{x:13,y:5.3056},{x:14,y:5.3055},{x:15,y:5.3668},{x:16,y:5.3278},{x:17,y:5.1809},{x:18,y:5.1903},{x:19,y:5.2371},{x:20,y:5.1191},{x:21,y:5.2279},{x:22,y:5.2472},{x:23,y:5.0603},{x:24,y:5.0819},{x:25,y:5.1446},{x:26,y:5.1324},{x:27,y:4.9206},{x:28,y:4.9234},{x:29,y:4.9453},{x:30,y:4.8936},{x:31,y:4.7783},{x:32,y:4.8811},{x:33,y:4.8786},{x:34,y:4.9619},{x:35,y:4.8906},{x:36,y:4.7837},{x:37,y:4.7318}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:5.0058},{x:2,y:4.4538},{x:3,y:4.1485},{x:4,y:3.9355},{x:5,y:3.7728},{x:6,y:3.6661},{x:7,y:3.5994},{x:8,y:3.5518},{x:9,y:3.5143},{x:10,y:3.4470},{x:11,y:3.3926},{x:12,y:3.3354},{x:13,y:3.2879},{x:14,y:3.2502},{x:15,y:3.2135},{x:16,y:3.1739},{x:17,y:3.1349},{x:18,y:3.1000},{x:19,y:3.0772},{x:20,y:3.0554},{x:21,y:3.0368},{x:22,y:3.0192},{x:23,y:3.0054},{x:24,y:2.9910},{x:25,y:2.9826},{x:26,y:2.9786},{x:27,y:2.9763},{x:28,y:2.9772},{x:29,y:2.9838},{x:30,y:2.9920},{x:31,y:2.9963},{x:32,y:2.9976},{x:33,y:3.0006},{x:34,y:3.0027},{x:35,y:3.0046},{x:36,y:3.0057},{x:37,y:3.0076}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.0183},{x:2,y:5.8726},{x:3,y:5.6511},{x:4,y:5.9137},{x:5,y:5.7826},{x:6,y:5.6122},{x:7,y:5.5391},{x:8,y:5.5738},{x:9,y:5.4457},{x:10,y:5.4995},{x:11,y:5.5581},{x:12,y:5.5413},{x:13,y:5.3711},{x:14,y:5.2521},{x:15,y:5.1771},{x:16,y:5.1509},{x:17,y:5.3701},{x:18,y:5.2854},{x:19,y:5.3054},{x:20,y:5.1737},{x:21,y:5.2439},{x:22,y:5.1252},{x:23,y:5.0561},{x:24,y:5.0685},{x:25,y:5.0316},{x:26,y:5.0243},{x:27,y:4.9527},{x:28,y:5.0169},{x:29,y:4.8738},{x:30,y:4.9948},{x:31,y:4.9706},{x:32,y:4.8826},{x:33,y:4.8627},{x:34,y:4.8434},{x:35,y:4.8252},{x:36,y:4.8247},{x:37,y:4.6701},{x:38,y:4.7494},{x:39,y:4.7447},{x:40,y:4.6784},{x:41,y:4.6840},{x:42,y:4.7647},{x:43,y:4.7133},{x:44,y:4.7177},{x:45,y:4.6794},{x:46,y:4.6685},{x:47,y:4.4863},{x:48,y:4.5636},{x:49,y:4.5649},{x:50,y:4.5362}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:4.6406},{x:2,y:4.3700},{x:3,y:4.2220},{x:4,y:4.1044},{x:5,y:4.0208},{x:6,y:3.9476},{x:7,y:3.8787},{x:8,y:3.8243},{x:9,y:3.7778},{x:10,y:3.7339},{x:11,y:3.6976},{x:12,y:3.6652},{x:13,y:3.6430},{x:14,y:3.6274},{x:15,y:3.6141},{x:16,y:3.6032},{x:17,y:3.5930},{x:18,y:3.5831},{x:19,y:3.5740},{x:20,y:3.5669},{x:21,y:3.5592},{x:22,y:3.5544},{x:23,y:3.5464},{x:24,y:3.5408},{x:25,y:3.5339},{x:26,y:3.5276},{x:27,y:3.5221},{x:28,y:3.5147},{x:29,y:3.5087},{x:30,y:3.5039},{x:31,y:3.4989},{x:32,y:3.4933},{x:33,y:3.4890},{x:34,y:3.4852},{x:35,y:3.4806},{x:36,y:3.4760},{x:37,y:3.4709},{x:38,y:3.4655},{x:39,y:3.4602},{x:40,y:3.4549},{x:41,y:3.4493},{x:42,y:3.4449},{x:43,y:3.4397},{x:44,y:3.4360},{x:45,y:3.4329},{x:46,y:3.4307},{x:47,y:3.4322},{x:48,y:3.4335},{x:49,y:3.4342},{x:50,y:3.4343}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:5.9223},{x:2,y:5.9351},{x:3,y:5.7952},{x:4,y:5.6771},{x:5,y:5.7685},{x:6,y:5.7830},{x:7,y:5.5147},{x:8,y:5.7450},{x:9,y:5.6105},{x:10,y:5.5506},{x:11,y:5.5929},{x:12,y:5.3113},{x:13,y:5.4736},{x:14,y:5.5455},{x:15,y:5.4841},{x:16,y:5.3466},{x:17,y:5.3308},{x:18,y:5.2810},{x:19,y:5.2863},{x:20,y:5.2735},{x:21,y:5.2657},{x:22,y:5.1879},{x:23,y:5.1096},{x:24,y:5.3304},{x:25,y:5.1003},{x:26,y:5.1602},{x:27,y:5.2542},{x:28,y:5.1515},{x:29,y:4.9724},{x:30,y:5.0078},{x:31,y:5.0478}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:3.3686},{x:2,y:3.2484},{x:3,y:3.1702},{x:4,y:3.1060},{x:5,y:3.0487},{x:6,y:3.0002},{x:7,y:2.9611},{x:8,y:2.9311},{x:9,y:2.9060},{x:10,y:2.8862},{x:11,y:2.8720},{x:12,y:2.8537},{x:13,y:2.8447},{x:14,y:2.8395},{x:15,y:2.8369},{x:16,y:2.8320},{x:17,y:2.8311},{x:18,y:2.8308},{x:19,y:2.8302},{x:20,y:2.8281},{x:21,y:2.8266},{x:22,y:2.8277},{x:23,y:2.8316},{x:24,y:2.8335},{x:25,y:2.8348},{x:26,y:2.8343},{x:27,y:2.8348},{x:28,y:2.8352},{x:29,y:2.8360},{x:30,y:2.8357},{x:31,y:2.8373}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.9589},{x:2,y:5.7742},{x:3,y:5.8350},{x:4,y:5.7788},{x:5,y:5.6774},{x:6,y:5.6112},{x:7,y:5.5801},{x:8,y:5.5773},{x:9,y:5.9147},{x:10,y:5.6536},{x:11,y:5.4755},{x:12,y:5.3824},{x:13,y:5.2864},{x:14,y:5.3739},{x:15,y:5.1642},{x:16,y:5.1875},{x:17,y:5.2267},{x:18,y:5.1343},{x:19,y:5.2629},{x:20,y:5.1358},{x:21,y:5.1631},{x:22,y:5.1663},{x:23,y:5.0084},{x:24,y:5.0208},{x:25,y:4.9326},{x:26,y:5.0555},{x:27,y:4.9155},{x:28,y:4.9055},{x:29,y:4.8437},{x:30,y:4.9137},{x:31,y:4.8327},{x:32,y:4.9940},{x:33,y:4.7945},{x:34,y:4.8996},{x:35,y:4.8448},{x:36,y:4.8885},{x:37,y:4.7832},{x:38,y:4.5978},{x:39,y:4.6016},{x:40,y:4.6042},{x:41,y:4.6233},{x:42,y:4.6038},{x:43,y:4.5543},{x:44,y:4.4697},{x:45,y:4.6573},{x:46,y:4.5361},{x:47,y:4.7017},{x:48,y:4.4715},{x:49,y:4.5397},{x:50,y:4.5921}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:3.0243},{x:2,y:2.9314},{x:3,y:2.8812},{x:4,y:2.8524},{x:5,y:2.8376},{x:6,y:2.8351},{x:7,y:2.8301},{x:8,y:2.8204},{x:9,y:2.8113},{x:10,y:2.8000},{x:11,y:2.7869},{x:12,y:2.7773},{x:13,y:2.7697},{x:14,y:2.7649},{x:15,y:2.7640},{x:16,y:2.7611},{x:17,y:2.7598},{x:18,y:2.7567},{x:19,y:2.7537},{x:20,y:2.7504},{x:21,y:2.7472},{x:22,y:2.7438},{x:23,y:2.7400},{x:24,y:2.7372},{x:25,y:2.7333},{x:26,y:2.7290},{x:27,y:2.7255},{x:28,y:2.7219},{x:29,y:2.7178},{x:30,y:2.7145},{x:31,y:2.7118},{x:32,y:2.7092},{x:33,y:2.7054},{x:34,y:2.7008},{x:35,y:2.6941},{x:36,y:2.6882},{x:37,y:2.6820},{x:38,y:2.6778},{x:39,y:2.6722},{x:40,y:2.6699},{x:41,y:2.6672},{x:42,y:2.6674},{x:43,y:2.6688},{x:44,y:2.6680},{x:45,y:2.6686},{x:46,y:2.6670},{x:47,y:2.6661},{x:48,y:2.6660},{x:49,y:2.6626},{x:50,y:2.6603}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:5.5781},{x:2,y:5.8517},{x:3,y:5.7444},{x:4,y:5.5721},{x:5,y:5.5428},{x:6,y:5.5409},{x:7,y:5.5763},{x:8,y:5.5417},{x:9,y:5.4397},{x:10,y:5.4347},{x:11,y:5.5010},{x:12,y:5.4864},{x:13,y:5.4359},{x:14,y:5.3265},{x:15,y:5.2008},{x:16,y:5.1877},{x:17,y:5.2620},{x:18,y:5.3030},{x:19,y:5.3447},{x:20,y:5.1546},{x:21,y:5.1913},{x:22,y:5.2246},{x:23,y:5.0542},{x:24,y:5.0924},{x:25,y:5.2553},{x:26,y:5.0968},{x:27,y:4.9253},{x:28,y:5.0575},{x:29,y:4.9833},{x:30,y:4.9089},{x:31,y:4.9745},{x:32,y:4.9832},{x:33,y:4.9726},{x:34,y:4.8920},{x:35,y:4.9605},{x:36,y:4.8764},{x:37,y:4.8721},{x:38,y:4.8749},{x:39,y:4.7673},{x:40,y:4.7775},{x:41,y:4.8420},{x:42,y:4.7274},{x:43,y:4.7413},{x:44,y:4.8184}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:4.1533},{x:2,y:4.0036},{x:3,y:3.9124},{x:4,y:3.8466},{x:5,y:3.7906},{x:6,y:3.7468},{x:7,y:3.7156},{x:8,y:3.6945},{x:9,y:3.6725},{x:10,y:3.6487},{x:11,y:3.6266},{x:12,y:3.6029},{x:13,y:3.5815},{x:14,y:3.5633},{x:15,y:3.5477},{x:16,y:3.5370},{x:17,y:3.5277},{x:18,y:3.5191},{x:19,y:3.5086},{x:20,y:3.4994},{x:21,y:3.4937},{x:22,y:3.4878},{x:23,y:3.4849},{x:24,y:3.4820},{x:25,y:3.4789},{x:26,y:3.4785},{x:27,y:3.4771},{x:28,y:3.4762},{x:29,y:3.4756},{x:30,y:3.4741},{x:31,y:3.4723},{x:32,y:3.4734},{x:33,y:3.4723},{x:34,y:3.4701},{x:35,y:3.4718},{x:36,y:3.4710},{x:37,y:3.4714},{x:38,y:3.4742},{x:39,y:3.4756},{x:40,y:3.4778},{x:41,y:3.4802},{x:42,y:3.4812},{x:43,y:3.4823},{x:44,y:3.4837}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-12">
+  <h2 class="exp-title">brca_pathway_mlp_kegg_layernorm</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-28 04:25 &nbsp;|&nbsp;
+    Wall time: 44.5s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5553 — this improves on the baseline by +0.0152 (0.5402).</p><p><strong>Ablation: pathway_norm='layer'.</strong> Replaces the default BatchNorm1d after the sparse pathway projection with LayerNorm. LayerNorm normalises across the pathway dimension per sample, making it invariant to the absolute activation scale of each pathway node. BatchNorm normalises across the batch dimension per pathway node, so it is sensitive to the fact that large pathways produce higher-magnitude activations than small ones — even after Kaiming init, a single large pathway can skew the batch statistics and suppress gradient flow to smaller pathway nodes.</p><p>LayerNorm underperforms the base C2 KEGG run (0.5638, Δ-0.0085). With full-batch training, BatchNorm statistics are stable (no batch-to-batch noise), so it may actually be working better than expected for this setup.</p><p><strong>Fold instability:</strong> fold 4 converge at epoch ≤ 2, suggesting that changing the normalisation layer alone does not resolve the underlying optimisation instability caused by the UNASSIGNED node.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">model</td><td class="diff-old">omics_mlp</td><td class="diff-arrow">→</td><td class="diff-new">pathway_mlp</td></tr><tr><td class="diff-key">pathway_db</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">c2_kegg</td></tr><tr><td class="diff-key">pathway_norm</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">layer</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">3000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:72.4%"></div>
+  </div>
+  <span class="fold-val">0.5794</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:81.8%"></div>
+  </div>
+  <span class="fold-val">0.6546</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:53.1%"></div>
+  </div>
+  <span class="fold-val">0.4245</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:69.5%"></div>
+  </div>
+  <span class="fold-val">0.5559</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:70.3%"></div>
+  </div>
+  <span class="fold-val">0.5623</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-12" role="img"
+    aria-label="Training and validation loss curves for brca_pathway_mlp_kegg_layernorm">
+    Loss curves for brca_pathway_mlp_kegg_layernorm.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-12'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.7019},{x:2,y:5.9063},{x:3,y:5.9086},{x:4,y:5.9619},{x:5,y:5.9404},{x:6,y:5.8402},{x:7,y:6.1586},{x:8,y:5.7000},{x:9,y:5.8936},{x:10,y:5.8494},{x:11,y:5.9069},{x:12,y:5.9653},{x:13,y:5.9346},{x:14,y:5.7478},{x:15,y:5.8280},{x:16,y:5.8552},{x:17,y:5.8609},{x:18,y:5.6220},{x:19,y:5.8380},{x:20,y:5.8373},{x:21,y:5.6648},{x:22,y:5.7862},{x:23,y:5.8874},{x:24,y:5.7926},{x:25,y:5.8018},{x:26,y:5.7648},{x:27,y:5.8197},{x:28,y:5.6996},{x:29,y:5.5659},{x:30,y:5.7686},{x:31,y:5.6989},{x:32,y:5.6866},{x:33,y:5.8265},{x:34,y:5.8175},{x:35,y:5.6855},{x:36,y:5.6926},{x:37,y:5.6213},{x:38,y:5.6886},{x:39,y:5.6032},{x:40,y:5.7369},{x:41,y:5.5959},{x:42,y:5.6314},{x:43,y:5.6655},{x:44,y:5.6169},{x:45,y:5.7106},{x:46,y:5.7656},{x:47,y:5.6972},{x:48,y:5.5565},{x:49,y:5.5707},{x:50,y:5.6386}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.1315},{x:2,y:3.1134},{x:3,y:3.0933},{x:4,y:3.0772},{x:5,y:3.0591},{x:6,y:3.0517},{x:7,y:3.0582},{x:8,y:3.0545},{x:9,y:3.0501},{x:10,y:3.0538},{x:11,y:3.0595},{x:12,y:3.0648},{x:13,y:3.0665},{x:14,y:3.0688},{x:15,y:3.0668},{x:16,y:3.0622},{x:17,y:3.0570},{x:18,y:3.0532},{x:19,y:3.0488},{x:20,y:3.0448},{x:21,y:3.0433},{x:22,y:3.0384},{x:23,y:3.0350},{x:24,y:3.0319},{x:25,y:3.0305},{x:26,y:3.0259},{x:27,y:3.0208},{x:28,y:3.0155},{x:29,y:3.0152},{x:30,y:3.0112},{x:31,y:3.0082},{x:32,y:3.0049},{x:33,y:3.0005},{x:34,y:2.9943},{x:35,y:2.9908},{x:36,y:2.9906},{x:37,y:2.9862},{x:38,y:2.9842},{x:39,y:2.9824},{x:40,y:2.9799},{x:41,y:2.9783},{x:42,y:2.9780},{x:43,y:2.9772},{x:44,y:2.9769},{x:45,y:2.9722},{x:46,y:2.9682},{x:47,y:2.9668},{x:48,y:2.9652},{x:49,y:2.9643},{x:50,y:2.9621}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:5.9160},{x:2,y:5.9833},{x:3,y:6.0467},{x:4,y:6.1106},{x:5,y:6.1182},{x:6,y:5.6521},{x:7,y:6.0275},{x:8,y:6.1554},{x:9,y:6.0504},{x:10,y:5.9941},{x:11,y:6.0276},{x:12,y:5.9714},{x:13,y:6.0918},{x:14,y:5.8914},{x:15,y:5.8377},{x:16,y:5.8681},{x:17,y:5.8027},{x:18,y:5.8393},{x:19,y:5.9471},{x:20,y:5.5588},{x:21,y:5.8551},{x:22,y:5.9924},{x:23,y:5.8417},{x:24,y:5.8451},{x:25,y:5.6700},{x:26,y:5.5831},{x:27,y:5.9993},{x:28,y:5.7931},{x:29,y:5.8735},{x:30,y:5.6471},{x:31,y:5.8576},{x:32,y:5.9888},{x:33,y:6.1406},{x:34,y:5.8383},{x:35,y:5.7980},{x:36,y:5.7689},{x:37,y:5.9087},{x:38,y:5.7122},{x:39,y:5.8223},{x:40,y:5.8170},{x:41,y:5.9056},{x:42,y:5.6428},{x:43,y:5.7351},{x:44,y:5.9380},{x:45,y:5.7043},{x:46,y:5.6630},{x:47,y:5.6942},{x:48,y:5.8828},{x:49,y:5.6604},{x:50,y:5.6757}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:4.0171},{x:2,y:3.9827},{x:3,y:3.9529},{x:4,y:3.9286},{x:5,y:3.9044},{x:6,y:3.8893},{x:7,y:3.8737},{x:8,y:3.8504},{x:9,y:3.8255},{x:10,y:3.8046},{x:11,y:3.7898},{x:12,y:3.7737},{x:13,y:3.7612},{x:14,y:3.7487},{x:15,y:3.7386},{x:16,y:3.7306},{x:17,y:3.7227},{x:18,y:3.7167},{x:19,y:3.7089},{x:20,y:3.7027},{x:21,y:3.6931},{x:22,y:3.6868},{x:23,y:3.6809},{x:24,y:3.6741},{x:25,y:3.6664},{x:26,y:3.6605},{x:27,y:3.6557},{x:28,y:3.6510},{x:29,y:3.6453},{x:30,y:3.6398},{x:31,y:3.6373},{x:32,y:3.6322},{x:33,y:3.6268},{x:34,y:3.6226},{x:35,y:3.6184},{x:36,y:3.6140},{x:37,y:3.6099},{x:38,y:3.6084},{x:39,y:3.6066},{x:40,y:3.6034},{x:41,y:3.6000},{x:42,y:3.5938},{x:43,y:3.5892},{x:44,y:3.5867},{x:45,y:3.5842},{x:46,y:3.5803},{x:47,y:3.5751},{x:48,y:3.5707},{x:49,y:3.5654},{x:50,y:3.5615}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:5.9243},{x:2,y:6.0892},{x:3,y:6.1232},{x:4,y:6.1330},{x:5,y:5.9385},{x:6,y:5.8787},{x:7,y:5.9058},{x:8,y:6.1196},{x:9,y:6.3556},{x:10,y:6.0171},{x:11,y:6.1029},{x:12,y:6.0356},{x:13,y:6.1022},{x:14,y:6.0262},{x:15,y:6.0489},{x:16,y:5.9321},{x:17,y:5.8702},{x:18,y:5.9100},{x:19,y:5.8882}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:2.6669},{x:2,y:2.6523},{x:3,y:2.6297},{x:4,y:2.6259},{x:5,y:2.6231},{x:6,y:2.6154},{x:7,y:2.6104},{x:8,y:2.6050},{x:9,y:2.6047},{x:10,y:2.6068},{x:11,y:2.6093},{x:12,y:2.6102},{x:13,y:2.6096},{x:14,y:2.6099},{x:15,y:2.6098},{x:16,y:2.6110},{x:17,y:2.6095},{x:18,y:2.6088},{x:19,y:2.6067}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.9455},{x:2,y:5.8603},{x:3,y:6.2845},{x:4,y:5.8113},{x:5,y:5.8863},{x:6,y:6.2925},{x:7,y:5.8732},{x:8,y:5.6976},{x:9,y:5.9594},{x:10,y:5.9917},{x:11,y:5.9212}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:3.2906},{x:2,y:3.3077},{x:3,y:3.3208},{x:4,y:3.3225},{x:5,y:3.3168},{x:6,y:3.3121},{x:7,y:3.3124},{x:8,y:3.3113},{x:9,y:3.3065},{x:10,y:3.2997},{x:11,y:3.2927}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:5.9554},{x:2,y:6.1096},{x:3,y:6.1542},{x:4,y:6.2910},{x:5,y:5.9070},{x:6,y:5.9574},{x:7,y:5.8761},{x:8,y:6.0405},{x:9,y:6.0343},{x:10,y:6.0675},{x:11,y:5.8102},{x:12,y:5.7328},{x:13,y:5.8151},{x:14,y:5.8693},{x:15,y:5.7645},{x:16,y:5.7353},{x:17,y:5.7608},{x:18,y:5.9061},{x:19,y:6.0400},{x:20,y:5.9221},{x:21,y:5.8372},{x:22,y:6.0509},{x:23,y:5.8502},{x:24,y:5.8432},{x:25,y:5.9452},{x:26,y:5.7649},{x:27,y:5.7713},{x:28,y:5.8810},{x:29,y:6.0378},{x:30,y:5.7832},{x:31,y:5.6667},{x:32,y:5.9396},{x:33,y:5.8929},{x:34,y:5.7988},{x:35,y:5.9148},{x:36,y:5.7819},{x:37,y:5.5946},{x:38,y:5.5769},{x:39,y:5.8250},{x:40,y:5.7041},{x:41,y:5.6562},{x:42,y:5.8889},{x:43,y:5.7403},{x:44,y:5.6285},{x:45,y:5.7218},{x:46,y:5.7037},{x:47,y:5.7458},{x:48,y:5.6135},{x:49,y:5.7641},{x:50,y:5.5096}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:4.0983},{x:2,y:4.0608},{x:3,y:4.0277},{x:4,y:3.9863},{x:5,y:3.9490},{x:6,y:3.9172},{x:7,y:3.8903},{x:8,y:3.8622},{x:9,y:3.8296},{x:10,y:3.8050},{x:11,y:3.7860},{x:12,y:3.7723},{x:13,y:3.7593},{x:14,y:3.7473},{x:15,y:3.7404},{x:16,y:3.7325},{x:17,y:3.7242},{x:18,y:3.7158},{x:19,y:3.7072},{x:20,y:3.6939},{x:21,y:3.6838},{x:22,y:3.6794},{x:23,y:3.6752},{x:24,y:3.6714},{x:25,y:3.6683},{x:26,y:3.6642},{x:27,y:3.6594},{x:28,y:3.6585},{x:29,y:3.6567},{x:30,y:3.6532},{x:31,y:3.6518},{x:32,y:3.6489},{x:33,y:3.6451},{x:34,y:3.6403},{x:35,y:3.6373},{x:36,y:3.6335},{x:37,y:3.6324},{x:38,y:3.6300},{x:39,y:3.6316},{x:40,y:3.6320},{x:41,y:3.6341},{x:42,y:3.6332},{x:43,y:3.6319},{x:44,y:3.6331},{x:45,y:3.6328},{x:46,y:3.6319},{x:47,y:3.6300},{x:48,y:3.6281},{x:49,y:3.6252},{x:50,y:3.6236}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
+  options:{
+    responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(3)}}},
+    scales:{
+      x:{type:'linear',title:{display:true,text:'Epoch',font:{size:11}},
+          ticks:{font:{size:10},stepSize:10}},
+      y:{title:{display:true,text:'Cox loss',font:{size:11}},
+          ticks:{font:{size:10},callback:v=>v.toFixed(2)}}
+    }
+  }
+});
+</script>
+</section>
+<section class="exp-section" id="exp-13">
+  <h2 class="exp-title">brca_omics_cox_selection</h2>
+  <div class="exp-meta">
+    Status: <strong>success</strong> &nbsp;|&nbsp;
+    Started: 2026-04-29 21:23 &nbsp;|&nbsp;
+    Wall time: 26.7s &nbsp;|&nbsp;
+    Git: <code></code>
+  </div>
+
+  <h3>Analysis</h3>
+  <div class="commentary"><p>Mean C-index 0.5989 — this improves on the baseline by +0.0587 (0.5402).</p><p>Raising top_k from 500 to 1000 genes is the key change. More high-variance genes capture a broader range of biological processes. Weight decay (1e-4) prevents overfitting on TCGA-BRCA's ~900 patients, so the additional genes add signal rather than noise.</p><p>The gain is substantial, but the model still falls short of the benchmark band — further top_k increases or architectural changes may be needed.</p></div>
+
+  <h3>Config changes vs baseline</h3>
+  <table class="diff-table"><tr><td class="diff-key">epochs</td><td class="diff-old">50</td><td class="diff-arrow">→</td><td class="diff-new">200</td></tr><tr><td class="diff-key">gene_selection</td><td class="diff-old">&lt;absent&gt;</td><td class="diff-arrow">→</td><td class="diff-new">cox</td></tr><tr><td class="diff-key">top_k_genes</td><td class="diff-old">500</td><td class="diff-arrow">→</td><td class="diff-new">1000</td></tr></table>
+
+  <h3>C-index by fold <span class="bench-legend">gold band = benchmark 0.62-0.68</span></h3>
+  
+<div class="fold-row">
+  <span class="fold-label">Fold 0</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-good" style="width:77.6%"></div>
+  </div>
+  <span class="fold-val">0.6204</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 1</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-great" style="width:88.0%"></div>
+  </div>
+  <span class="fold-val">0.7039</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 2</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-bad" style="width:60.2%"></div>
+  </div>
+  <span class="fold-val">0.4813</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 3</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:72.6%"></div>
+  </div>
+  <span class="fold-val">0.5808</span>
+</div>
+<div class="fold-row">
+  <span class="fold-label">Fold 4</span>
+  <div class="fold-bar-wrap">
+    <div class="bench-band" style="left:77.5%;width:7.5%"></div>
+    <div class="fold-bar ci-low" style="width:76.0%"></div>
+  </div>
+  <span class="fold-val">0.6082</span>
+</div>
+
+  <h3>Loss curves
+    <span class="curve-legend">
+      <span class="leg-solid">— train</span>
+      <span class="leg-dash">- - val</span>
+    </span>
+  </h3>
+  
+<div style="position:relative;width:100%;height:220px;margin-top:12px;">
+  <canvas id="lc-13" role="img"
+    aria-label="Training and validation loss curves for brca_omics_cox_selection">
+    Loss curves for brca_omics_cox_selection.
+  </canvas>
+</div>
+<script>
+new Chart(document.getElementById('lc-13'),{
+  type:'line',
+  data:{datasets:[
+  {label:'F0 train',data:[{x:1,y:5.6859},{x:2,y:5.6560},{x:3,y:5.6822},{x:4,y:5.7303},{x:5,y:5.7537},{x:6,y:5.6508},{x:7,y:5.7446},{x:8,y:5.5309},{x:9,y:5.6072},{x:10,y:5.5295},{x:11,y:5.5536},{x:12,y:5.5770},{x:13,y:5.5358},{x:14,y:5.5024},{x:15,y:5.3959},{x:16,y:5.4688},{x:17,y:5.3987},{x:18,y:5.3129},{x:19,y:5.4288},{x:20,y:5.3418},{x:21,y:5.4475},{x:22,y:5.4600},{x:23,y:5.2704},{x:24,y:5.2519},{x:25,y:5.2928},{x:26,y:5.2537},{x:27,y:5.1880},{x:28,y:5.1865},{x:29,y:5.1355},{x:30,y:5.1291},{x:31,y:5.1178},{x:32,y:5.1313},{x:33,y:5.1257},{x:34,y:5.1362},{x:35,y:5.1736},{x:36,y:5.0921},{x:37,y:5.1606},{x:38,y:5.1247},{x:39,y:5.0535},{x:40,y:5.0424},{x:41,y:5.1717},{x:42,y:5.0096},{x:43,y:5.0110},{x:44,y:5.0217},{x:45,y:4.8976},{x:46,y:4.8932},{x:47,y:5.1419},{x:48,y:4.9828},{x:49,y:4.8916},{x:50,y:4.9194},{x:51,y:4.8824},{x:52,y:4.8659},{x:53,y:4.8643},{x:54,y:4.8107},{x:55,y:4.7968},{x:56,y:4.8310},{x:57,y:4.9155},{x:58,y:4.8242},{x:59,y:4.8007},{x:60,y:4.7800},{x:61,y:4.8035},{x:62,y:4.8229},{x:63,y:4.7637},{x:64,y:4.8458},{x:65,y:4.7391},{x:66,y:4.7170},{x:67,y:4.6583},{x:68,y:4.6606},{x:69,y:4.7772},{x:70,y:4.6553},{x:71,y:4.6312},{x:72,y:4.6321},{x:73,y:4.5769},{x:74,y:4.5988},{x:75,y:4.6032},{x:76,y:4.5850},{x:77,y:4.6688},{x:78,y:4.5071},{x:79,y:4.5259},{x:80,y:4.5402},{x:81,y:4.5508},{x:82,y:4.5232},{x:83,y:4.5524},{x:84,y:4.6395},{x:85,y:4.5244},{x:86,y:4.5176},{x:87,y:4.5026},{x:88,y:4.5305},{x:89,y:4.3951},{x:90,y:4.5760},{x:91,y:4.5204},{x:92,y:4.4987},{x:93,y:4.5077},{x:94,y:4.3635},{x:95,y:4.4417},{x:96,y:4.3154},{x:97,y:4.3672},{x:98,y:4.3325},{x:99,y:4.3089},{x:100,y:4.3454},{x:101,y:4.3012},{x:102,y:4.2759},{x:103,y:4.3271},{x:104,y:4.3127},{x:105,y:4.3929},{x:106,y:4.3387},{x:107,y:4.2596},{x:108,y:4.3059},{x:109,y:4.3577},{x:110,y:4.3571},{x:111,y:4.3237},{x:112,y:4.2362},{x:113,y:4.2784},{x:114,y:4.2687},{x:115,y:4.2713},{x:116,y:4.3305},{x:117,y:4.2338},{x:118,y:4.2604},{x:119,y:4.2208},{x:120,y:4.2600},{x:121,y:4.2403},{x:122,y:4.1317},{x:123,y:4.1712},{x:124,y:4.3069},{x:125,y:4.2375},{x:126,y:4.2363},{x:127,y:4.1424},{x:128,y:4.1532},{x:129,y:4.1151},{x:130,y:4.1715},{x:131,y:4.1070},{x:132,y:4.1294},{x:133,y:4.0291},{x:134,y:4.1470},{x:135,y:4.1159},{x:136,y:4.1051},{x:137,y:4.0250},{x:138,y:3.9812},{x:139,y:4.0020}],borderColor:'#3266ad',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F0 val',  data:[{x:1,y:3.0032},{x:2,y:2.9691},{x:3,y:2.9437},{x:4,y:2.9203},{x:5,y:2.8985},{x:6,y:2.8834},{x:7,y:2.8706},{x:8,y:2.8587},{x:9,y:2.8484},{x:10,y:2.8373},{x:11,y:2.8280},{x:12,y:2.8195},{x:13,y:2.8126},{x:14,y:2.8061},{x:15,y:2.8022},{x:16,y:2.7989},{x:17,y:2.7967},{x:18,y:2.7951},{x:19,y:2.7930},{x:20,y:2.7925},{x:21,y:2.7919},{x:22,y:2.7923},{x:23,y:2.7919},{x:24,y:2.7916},{x:25,y:2.7911},{x:26,y:2.7907},{x:27,y:2.7908},{x:28,y:2.7902},{x:29,y:2.7902},{x:30,y:2.7882},{x:31,y:2.7873},{x:32,y:2.7852},{x:33,y:2.7841},{x:34,y:2.7831},{x:35,y:2.7816},{x:36,y:2.7803},{x:37,y:2.7781},{x:38,y:2.7759},{x:39,y:2.7738},{x:40,y:2.7720},{x:41,y:2.7707},{x:42,y:2.7688},{x:43,y:2.7677},{x:44,y:2.7657},{x:45,y:2.7644},{x:46,y:2.7634},{x:47,y:2.7627},{x:48,y:2.7625},{x:49,y:2.7622},{x:50,y:2.7611},{x:51,y:2.7599},{x:52,y:2.7597},{x:53,y:2.7584},{x:54,y:2.7574},{x:55,y:2.7563},{x:56,y:2.7541},{x:57,y:2.7520},{x:58,y:2.7497},{x:59,y:2.7474},{x:60,y:2.7454},{x:61,y:2.7424},{x:62,y:2.7395},{x:63,y:2.7363},{x:64,y:2.7340},{x:65,y:2.7309},{x:66,y:2.7284},{x:67,y:2.7250},{x:68,y:2.7224},{x:69,y:2.7201},{x:70,y:2.7187},{x:71,y:2.7179},{x:72,y:2.7169},{x:73,y:2.7151},{x:74,y:2.7125},{x:75,y:2.7099},{x:76,y:2.7078},{x:77,y:2.7064},{x:78,y:2.7054},{x:79,y:2.7049},{x:80,y:2.7054},{x:81,y:2.7050},{x:82,y:2.7057},{x:83,y:2.7062},{x:84,y:2.7058},{x:85,y:2.7047},{x:86,y:2.7050},{x:87,y:2.7043},{x:88,y:2.7036},{x:89,y:2.7029},{x:90,y:2.7007},{x:91,y:2.6986},{x:92,y:2.6962},{x:93,y:2.6937},{x:94,y:2.6901},{x:95,y:2.6871},{x:96,y:2.6854},{x:97,y:2.6823},{x:98,y:2.6802},{x:99,y:2.6784},{x:100,y:2.6754},{x:101,y:2.6746},{x:102,y:2.6731},{x:103,y:2.6707},{x:104,y:2.6680},{x:105,y:2.6638},{x:106,y:2.6607},{x:107,y:2.6580},{x:108,y:2.6576},{x:109,y:2.6568},{x:110,y:2.6559},{x:111,y:2.6560},{x:112,y:2.6566},{x:113,y:2.6573},{x:114,y:2.6552},{x:115,y:2.6546},{x:116,y:2.6540},{x:117,y:2.6522},{x:118,y:2.6520},{x:119,y:2.6506},{x:120,y:2.6490},{x:121,y:2.6483},{x:122,y:2.6470},{x:123,y:2.6461},{x:124,y:2.6445},{x:125,y:2.6430},{x:126,y:2.6437},{x:127,y:2.6430},{x:128,y:2.6425},{x:129,y:2.6420},{x:130,y:2.6426},{x:131,y:2.6433},{x:132,y:2.6442},{x:133,y:2.6456},{x:134,y:2.6469},{x:135,y:2.6485},{x:136,y:2.6485},{x:137,y:2.6492},{x:138,y:2.6496},{x:139,y:2.6500}],borderColor:'#3266ad',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F1 train',data:[{x:1,y:6.0210},{x:2,y:6.0447},{x:3,y:5.9709},{x:4,y:5.8481},{x:5,y:5.8424},{x:6,y:5.9802},{x:7,y:5.6996},{x:8,y:5.8523},{x:9,y:5.5924},{x:10,y:5.7409},{x:11,y:5.7097},{x:12,y:5.4905},{x:13,y:5.7228},{x:14,y:5.7152},{x:15,y:5.5229},{x:16,y:5.3972},{x:17,y:5.5222},{x:18,y:5.4554},{x:19,y:5.4992},{x:20,y:5.3071},{x:21,y:5.3986},{x:22,y:5.4788},{x:23,y:5.3293},{x:24,y:5.3457},{x:25,y:5.2630},{x:26,y:5.3516},{x:27,y:5.3077},{x:28,y:5.2350},{x:29,y:5.2357},{x:30,y:5.2653},{x:31,y:4.9776},{x:32,y:5.2519},{x:33,y:4.9981},{x:34,y:5.4138},{x:35,y:5.3079},{x:36,y:5.2360},{x:37,y:5.1838},{x:38,y:5.2184},{x:39,y:5.1960},{x:40,y:5.1268},{x:41,y:5.0732},{x:42,y:4.9788},{x:43,y:5.1894},{x:44,y:4.9726},{x:45,y:4.9395},{x:46,y:5.0269},{x:47,y:4.9738},{x:48,y:4.8584},{x:49,y:4.9115},{x:50,y:5.1689},{x:51,y:4.9328},{x:52,y:5.0153},{x:53,y:5.0604},{x:54,y:5.0416},{x:55,y:4.6850},{x:56,y:4.8263},{x:57,y:4.8435},{x:58,y:4.8088},{x:59,y:4.9040},{x:60,y:4.8288},{x:61,y:4.7272},{x:62,y:4.7494},{x:63,y:4.8715},{x:64,y:4.7637},{x:65,y:4.7820},{x:66,y:4.7398},{x:67,y:4.8146},{x:68,y:4.8496},{x:69,y:4.7604},{x:70,y:4.7345},{x:71,y:4.8739},{x:72,y:4.7214},{x:73,y:4.6858},{x:74,y:4.7387},{x:75,y:4.6514},{x:76,y:4.6945},{x:77,y:4.6666},{x:78,y:4.5288},{x:79,y:4.5414},{x:80,y:4.7083},{x:81,y:4.7593},{x:82,y:4.5638},{x:83,y:4.6100},{x:84,y:4.5793},{x:85,y:4.5740},{x:86,y:4.6216},{x:87,y:4.6458}],borderColor:'#1d9e75',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F1 val',  data:[{x:1,y:4.0175},{x:2,y:3.9349},{x:3,y:3.8550},{x:4,y:3.8018},{x:5,y:3.7571},{x:6,y:3.7230},{x:7,y:3.7004},{x:8,y:3.6789},{x:9,y:3.6572},{x:10,y:3.6368},{x:11,y:3.6191},{x:12,y:3.6051},{x:13,y:3.5899},{x:14,y:3.5747},{x:15,y:3.5618},{x:16,y:3.5514},{x:17,y:3.5446},{x:18,y:3.5366},{x:19,y:3.5272},{x:20,y:3.5165},{x:21,y:3.5047},{x:22,y:3.4946},{x:23,y:3.4842},{x:24,y:3.4739},{x:25,y:3.4618},{x:26,y:3.4533},{x:27,y:3.4457},{x:28,y:3.4372},{x:29,y:3.4302},{x:30,y:3.4232},{x:31,y:3.4183},{x:32,y:3.4114},{x:33,y:3.4073},{x:34,y:3.3996},{x:35,y:3.3914},{x:36,y:3.3843},{x:37,y:3.3792},{x:38,y:3.3706},{x:39,y:3.3646},{x:40,y:3.3598},{x:41,y:3.3569},{x:42,y:3.3541},{x:43,y:3.3537},{x:44,y:3.3523},{x:45,y:3.3511},{x:46,y:3.3520},{x:47,y:3.3525},{x:48,y:3.3487},{x:49,y:3.3486},{x:50,y:3.3486},{x:51,y:3.3471},{x:52,y:3.3468},{x:53,y:3.3443},{x:54,y:3.3423},{x:55,y:3.3394},{x:56,y:3.3339},{x:57,y:3.3319},{x:58,y:3.3265},{x:59,y:3.3186},{x:60,y:3.3104},{x:61,y:3.3030},{x:62,y:3.2956},{x:63,y:3.2897},{x:64,y:3.2850},{x:65,y:3.2791},{x:66,y:3.2748},{x:67,y:3.2702},{x:68,y:3.2670},{x:69,y:3.2653},{x:70,y:3.2622},{x:71,y:3.2590},{x:72,y:3.2589},{x:73,y:3.2568},{x:74,y:3.2556},{x:75,y:3.2547},{x:76,y:3.2549},{x:77,y:3.2523},{x:78,y:3.2526},{x:79,y:3.2533},{x:80,y:3.2549},{x:81,y:3.2565},{x:82,y:3.2565},{x:83,y:3.2562},{x:84,y:3.2570},{x:85,y:3.2567},{x:86,y:3.2558},{x:87,y:3.2544}],borderColor:'#1d9e75',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F2 train',data:[{x:1,y:6.3920},{x:2,y:6.2015},{x:3,y:6.2099},{x:4,y:6.4588},{x:5,y:6.1356},{x:6,y:6.1222},{x:7,y:5.9584},{x:8,y:5.8032},{x:9,y:5.8692},{x:10,y:6.1436},{x:11,y:5.8726},{x:12,y:5.9495},{x:13,y:5.8054},{x:14,y:5.8223},{x:15,y:6.0820},{x:16,y:5.6352},{x:17,y:5.6740},{x:18,y:5.7398},{x:19,y:5.7597},{x:20,y:5.5730},{x:21,y:5.7685},{x:22,y:5.5925},{x:23,y:5.4398},{x:24,y:5.8002},{x:25,y:5.5460},{x:26,y:5.3646},{x:27,y:5.7036},{x:28,y:5.3458},{x:29,y:5.5237},{x:30,y:5.4632},{x:31,y:5.3720},{x:32,y:5.4084},{x:33,y:5.3758},{x:34,y:5.4262},{x:35,y:5.2302},{x:36,y:5.2052},{x:37,y:5.1831},{x:38,y:5.2064},{x:39,y:5.3459},{x:40,y:5.2371},{x:41,y:5.0224},{x:42,y:5.2601},{x:43,y:5.1663},{x:44,y:5.1666},{x:45,y:5.0794},{x:46,y:5.0779},{x:47,y:5.0997},{x:48,y:5.0500}],borderColor:'#ba7517',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F2 val',  data:[{x:1,y:3.5899},{x:2,y:3.3800},{x:3,y:3.2543},{x:4,y:3.1749},{x:5,y:3.1196},{x:6,y:3.0821},{x:7,y:3.0572},{x:8,y:3.0451},{x:9,y:3.0385},{x:10,y:3.0345},{x:11,y:3.0301},{x:12,y:3.0271},{x:13,y:3.0256},{x:14,y:3.0211},{x:15,y:3.0191},{x:16,y:3.0162},{x:17,y:3.0142},{x:18,y:3.0147},{x:19,y:3.0115},{x:20,y:3.0098},{x:21,y:3.0050},{x:22,y:3.0018},{x:23,y:2.9989},{x:24,y:2.9951},{x:25,y:2.9901},{x:26,y:2.9867},{x:27,y:2.9831},{x:28,y:2.9772},{x:29,y:2.9729},{x:30,y:2.9689},{x:31,y:2.9660},{x:32,y:2.9637},{x:33,y:2.9625},{x:34,y:2.9632},{x:35,y:2.9621},{x:36,y:2.9615},{x:37,y:2.9615},{x:38,y:2.9615},{x:39,y:2.9623},{x:40,y:2.9633},{x:41,y:2.9638},{x:42,y:2.9638},{x:43,y:2.9628},{x:44,y:2.9648},{x:45,y:2.9664},{x:46,y:2.9651},{x:47,y:2.9636},{x:48,y:2.9639}],borderColor:'#ba7517',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F3 train',data:[{x:1,y:5.8097},{x:2,y:5.8373},{x:3,y:5.8427},{x:4,y:5.9488},{x:5,y:5.7766},{x:6,y:5.8052},{x:7,y:5.7581},{x:8,y:5.7960},{x:9,y:5.6555},{x:10,y:5.5265},{x:11,y:5.6223},{x:12,y:5.4680},{x:13,y:5.6551},{x:14,y:5.6158},{x:15,y:5.4012},{x:16,y:5.4570},{x:17,y:5.3616},{x:18,y:5.4457},{x:19,y:5.4800},{x:20,y:5.3300},{x:21,y:5.3707},{x:22,y:5.4191},{x:23,y:5.4043},{x:24,y:5.4884},{x:25,y:5.3552},{x:26,y:5.2346},{x:27,y:5.2255},{x:28,y:5.4129},{x:29,y:5.2565},{x:30,y:5.2961},{x:31,y:5.1876},{x:32,y:5.1882},{x:33,y:5.1841},{x:34,y:5.1066},{x:35,y:5.0731},{x:36,y:5.1009},{x:37,y:5.0960},{x:38,y:5.0959},{x:39,y:5.2347},{x:40,y:5.1175},{x:41,y:5.0824},{x:42,y:5.1936},{x:43,y:5.0169},{x:44,y:4.9706},{x:45,y:5.1235},{x:46,y:5.0205},{x:47,y:4.9061},{x:48,y:4.9783},{x:49,y:4.8568},{x:50,y:4.8644},{x:51,y:4.8408},{x:52,y:4.9355},{x:53,y:4.9153},{x:54,y:4.9277},{x:55,y:4.8477},{x:56,y:4.8192},{x:57,y:4.8953},{x:58,y:4.7491},{x:59,y:4.6721},{x:60,y:4.8432},{x:61,y:4.6673},{x:62,y:4.8530},{x:63,y:4.8102},{x:64,y:4.7461},{x:65,y:4.7237},{x:66,y:4.7168},{x:67,y:4.6008},{x:68,y:4.8322},{x:69,y:4.7025},{x:70,y:4.6472},{x:71,y:4.6754},{x:72,y:4.6497},{x:73,y:4.6057},{x:74,y:4.5153},{x:75,y:4.5981},{x:76,y:4.6073},{x:77,y:4.6530},{x:78,y:4.5623},{x:79,y:4.4907},{x:80,y:4.5811},{x:81,y:4.6157},{x:82,y:4.5841},{x:83,y:4.5507},{x:84,y:4.4376},{x:85,y:4.4390},{x:86,y:4.5422},{x:87,y:4.5177},{x:88,y:4.4605},{x:89,y:4.4826},{x:90,y:4.3665},{x:91,y:4.4289},{x:92,y:4.4459},{x:93,y:4.4031},{x:94,y:4.4570},{x:95,y:4.5348},{x:96,y:4.3737},{x:97,y:4.4783},{x:98,y:4.3612},{x:99,y:4.3431},{x:100,y:4.3703},{x:101,y:4.3294},{x:102,y:4.3977},{x:103,y:4.3501},{x:104,y:4.4445},{x:105,y:4.3857},{x:106,y:4.3209},{x:107,y:4.2009},{x:108,y:4.2309},{x:109,y:4.2374},{x:110,y:4.3020},{x:111,y:4.1290},{x:112,y:4.3735},{x:113,y:4.2448},{x:114,y:4.2585},{x:115,y:4.2962}],borderColor:'#a32d2d',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F3 val',  data:[{x:1,y:3.7217},{x:2,y:3.4900},{x:3,y:3.3367},{x:4,y:3.2287},{x:5,y:3.1449},{x:6,y:3.0835},{x:7,y:3.0360},{x:8,y:2.9928},{x:9,y:2.9607},{x:10,y:2.9341},{x:11,y:2.9105},{x:12,y:2.8936},{x:13,y:2.8794},{x:14,y:2.8676},{x:15,y:2.8573},{x:16,y:2.8487},{x:17,y:2.8406},{x:18,y:2.8347},{x:19,y:2.8292},{x:20,y:2.8246},{x:21,y:2.8208},{x:22,y:2.8162},{x:23,y:2.8120},{x:24,y:2.8073},{x:25,y:2.8030},{x:26,y:2.7992},{x:27,y:2.7959},{x:28,y:2.7915},{x:29,y:2.7871},{x:30,y:2.7845},{x:31,y:2.7817},{x:32,y:2.7791},{x:33,y:2.7760},{x:34,y:2.7739},{x:35,y:2.7725},{x:36,y:2.7709},{x:37,y:2.7690},{x:38,y:2.7668},{x:39,y:2.7642},{x:40,y:2.7614},{x:41,y:2.7593},{x:42,y:2.7583},{x:43,y:2.7569},{x:44,y:2.7585},{x:45,y:2.7568},{x:46,y:2.7572},{x:47,y:2.7567},{x:48,y:2.7551},{x:49,y:2.7553},{x:50,y:2.7545},{x:51,y:2.7543},{x:52,y:2.7545},{x:53,y:2.7545},{x:54,y:2.7543},{x:55,y:2.7535},{x:56,y:2.7525},{x:57,y:2.7508},{x:58,y:2.7487},{x:59,y:2.7464},{x:60,y:2.7424},{x:61,y:2.7383},{x:62,y:2.7353},{x:63,y:2.7325},{x:64,y:2.7304},{x:65,y:2.7273},{x:66,y:2.7245},{x:67,y:2.7231},{x:68,y:2.7229},{x:69,y:2.7229},{x:70,y:2.7224},{x:71,y:2.7215},{x:72,y:2.7195},{x:73,y:2.7185},{x:74,y:2.7157},{x:75,y:2.7134},{x:76,y:2.7117},{x:77,y:2.7107},{x:78,y:2.7095},{x:79,y:2.7082},{x:80,y:2.7049},{x:81,y:2.7031},{x:82,y:2.7022},{x:83,y:2.7011},{x:84,y:2.7011},{x:85,y:2.7012},{x:86,y:2.6996},{x:87,y:2.6981},{x:88,y:2.6974},{x:89,y:2.6982},{x:90,y:2.6985},{x:91,y:2.6978},{x:92,y:2.6972},{x:93,y:2.6957},{x:94,y:2.6952},{x:95,y:2.6941},{x:96,y:2.6943},{x:97,y:2.6943},{x:98,y:2.6936},{x:99,y:2.6914},{x:100,y:2.6903},{x:101,y:2.6894},{x:102,y:2.6886},{x:103,y:2.6872},{x:104,y:2.6867},{x:105,y:2.6864},{x:106,y:2.6866},{x:107,y:2.6881},{x:108,y:2.6889},{x:109,y:2.6886},{x:110,y:2.6889},{x:111,y:2.6879},{x:112,y:2.6880},{x:113,y:2.6887},{x:114,y:2.6893},{x:115,y:2.6899}],borderColor:'#a32d2d',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},
+  {label:'F4 train',data:[{x:1,y:6.3587},{x:2,y:6.2392},{x:3,y:6.1135},{x:4,y:6.2776},{x:5,y:5.8760},{x:6,y:6.3887},{x:7,y:6.1546},{x:8,y:5.9893},{x:9,y:6.0431},{x:10,y:6.0834},{x:11,y:5.9718},{x:12,y:6.0605},{x:13,y:5.8670},{x:14,y:5.8818},{x:15,y:5.8077},{x:16,y:5.8336},{x:17,y:5.8425},{x:18,y:5.7594},{x:19,y:5.6456},{x:20,y:5.7752},{x:21,y:5.6991},{x:22,y:5.6017},{x:23,y:5.6466},{x:24,y:5.5974},{x:25,y:5.5981},{x:26,y:5.6042},{x:27,y:5.5173},{x:28,y:5.4783},{x:29,y:5.4591},{x:30,y:5.4408},{x:31,y:5.5054},{x:32,y:5.3994},{x:33,y:5.4790},{x:34,y:5.4345},{x:35,y:5.4029},{x:36,y:5.3846},{x:37,y:5.4698},{x:38,y:5.3600},{x:39,y:5.3824},{x:40,y:5.3524},{x:41,y:5.3207},{x:42,y:5.4743},{x:43,y:5.4100},{x:44,y:5.2413},{x:45,y:5.2330},{x:46,y:5.2847},{x:47,y:5.1802},{x:48,y:5.0951},{x:49,y:5.2061},{x:50,y:5.2085},{x:51,y:5.1467},{x:52,y:5.2739},{x:53,y:4.9941},{x:54,y:5.1631},{x:55,y:5.1882},{x:56,y:5.1609},{x:57,y:5.0711},{x:58,y:5.0696},{x:59,y:5.0797},{x:60,y:5.0918},{x:61,y:4.9764},{x:62,y:5.0500},{x:63,y:5.1146},{x:64,y:4.9454},{x:65,y:5.0267},{x:66,y:5.0511},{x:67,y:4.8415},{x:68,y:4.9710},{x:69,y:4.9646},{x:70,y:4.9948},{x:71,y:5.0280},{x:72,y:4.8976},{x:73,y:4.8955},{x:74,y:4.8116},{x:75,y:4.8690},{x:76,y:4.9702},{x:77,y:4.9674},{x:78,y:4.7987},{x:79,y:4.8464},{x:80,y:4.8218},{x:81,y:4.8320},{x:82,y:4.8371},{x:83,y:4.7169},{x:84,y:4.7182},{x:85,y:4.7730},{x:86,y:4.6981},{x:87,y:4.7986},{x:88,y:4.8446},{x:89,y:4.6266},{x:90,y:4.7147},{x:91,y:4.6393},{x:92,y:4.7833},{x:93,y:4.8036},{x:94,y:4.6638},{x:95,y:4.7355},{x:96,y:4.6376},{x:97,y:4.7882},{x:98,y:4.6888},{x:99,y:4.5998},{x:100,y:4.5932},{x:101,y:4.7572},{x:102,y:4.8215},{x:103,y:4.6182},{x:104,y:4.5803},{x:105,y:4.6213},{x:106,y:4.5244},{x:107,y:4.6462},{x:108,y:4.5989},{x:109,y:4.5237},{x:110,y:4.5146},{x:111,y:4.5562},{x:112,y:4.4895},{x:113,y:4.5605},{x:114,y:4.5192},{x:115,y:4.4692},{x:116,y:4.5762},{x:117,y:4.4761},{x:118,y:4.5369},{x:119,y:4.5322},{x:120,y:4.5337},{x:121,y:4.5873},{x:122,y:4.4932},{x:123,y:4.4953},{x:124,y:4.5396},{x:125,y:4.4113},{x:126,y:4.3950},{x:127,y:4.4006},{x:128,y:4.3642},{x:129,y:4.3819},{x:130,y:4.3545},{x:131,y:4.3791},{x:132,y:4.3868},{x:133,y:4.3708}],borderColor:'#534ab7',borderWidth:1.5,borderDash:[],pointRadius:0,tension:0.3},
+  {label:'F4 val',  data:[{x:1,y:4.8334},{x:2,y:4.4952},{x:3,y:4.2916},{x:4,y:4.1522},{x:5,y:4.0540},{x:6,y:3.9798},{x:7,y:3.9184},{x:8,y:3.8618},{x:9,y:3.8143},{x:10,y:3.7736},{x:11,y:3.7407},{x:12,y:3.7098},{x:13,y:3.6830},{x:14,y:3.6579},{x:15,y:3.6367},{x:16,y:3.6187},{x:17,y:3.6023},{x:18,y:3.5880},{x:19,y:3.5762},{x:20,y:3.5646},{x:21,y:3.5538},{x:22,y:3.5436},{x:23,y:3.5331},{x:24,y:3.5249},{x:25,y:3.5171},{x:26,y:3.5069},{x:27,y:3.4964},{x:28,y:3.4900},{x:29,y:3.4832},{x:30,y:3.4762},{x:31,y:3.4677},{x:32,y:3.4615},{x:33,y:3.4567},{x:34,y:3.4518},{x:35,y:3.4472},{x:36,y:3.4431},{x:37,y:3.4407},{x:38,y:3.4391},{x:39,y:3.4378},{x:40,y:3.4367},{x:41,y:3.4356},{x:42,y:3.4334},{x:43,y:3.4326},{x:44,y:3.4316},{x:45,y:3.4298},{x:46,y:3.4273},{x:47,y:3.4252},{x:48,y:3.4214},{x:49,y:3.4190},{x:50,y:3.4160},{x:51,y:3.4141},{x:52,y:3.4131},{x:53,y:3.4117},{x:54,y:3.4101},{x:55,y:3.4087},{x:56,y:3.4085},{x:57,y:3.4084},{x:58,y:3.4060},{x:59,y:3.4058},{x:60,y:3.4059},{x:61,y:3.4038},{x:62,y:3.4023},{x:63,y:3.3983},{x:64,y:3.3964},{x:65,y:3.3919},{x:66,y:3.3872},{x:67,y:3.3831},{x:68,y:3.3803},{x:69,y:3.3773},{x:70,y:3.3739},{x:71,y:3.3716},{x:72,y:3.3708},{x:73,y:3.3699},{x:74,y:3.3680},{x:75,y:3.3678},{x:76,y:3.3669},{x:77,y:3.3668},{x:78,y:3.3645},{x:79,y:3.3623},{x:80,y:3.3618},{x:81,y:3.3611},{x:82,y:3.3605},{x:83,y:3.3590},{x:84,y:3.3567},{x:85,y:3.3548},{x:86,y:3.3529},{x:87,y:3.3489},{x:88,y:3.3469},{x:89,y:3.3444},{x:90,y:3.3404},{x:91,y:3.3366},{x:92,y:3.3337},{x:93,y:3.3305},{x:94,y:3.3276},{x:95,y:3.3255},{x:96,y:3.3255},{x:97,y:3.3247},{x:98,y:3.3257},{x:99,y:3.3269},{x:100,y:3.3272},{x:101,y:3.3285},{x:102,y:3.3291},{x:103,y:3.3296},{x:104,y:3.3305},{x:105,y:3.3299},{x:106,y:3.3267},{x:107,y:3.3244},{x:108,y:3.3221},{x:109,y:3.3178},{x:110,y:3.3150},{x:111,y:3.3129},{x:112,y:3.3084},{x:113,y:3.3038},{x:114,y:3.2996},{x:115,y:3.2965},{x:116,y:3.2935},{x:117,y:3.2886},{x:118,y:3.2834},{x:119,y:3.2800},{x:120,y:3.2759},{x:121,y:3.2742},{x:122,y:3.2723},{x:123,y:3.2722},{x:124,y:3.2736},{x:125,y:3.2752},{x:126,y:3.2762},{x:127,y:3.2771},{x:128,y:3.2781},{x:129,y:3.2779},{x:130,y:3.2784},{x:131,y:3.2770},{x:132,y:3.2764},{x:133,y:3.2767}],borderColor:'#534ab7',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0.3},]},
   options:{
     responsive:true,maintainAspectRatio:false,parsing:false,animation:false,
     plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,

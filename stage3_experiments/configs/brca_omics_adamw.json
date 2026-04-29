@@ -1,0 +1,32 @@
+{
+  "name": "brca_omics_adamw",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 2000,
+  "model": "omics_mlp",
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adamw",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Baseline improvement 6/10: optimizer='adamw' switches from Adam to AdamW. In vanilla Adam the weight_decay term is divided by the adaptive second-moment estimate, so frequently-updated parameters are regularised less than infrequently-updated ones \u2014 an unintended interaction. AdamW decouples weight decay from the gradient update entirely, making the L2 penalty apply uniformly regardless of gradient history. With weight_decay=1e-4 already set, this is a pure correctness fix at zero config cost. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "config_version": 1
+}

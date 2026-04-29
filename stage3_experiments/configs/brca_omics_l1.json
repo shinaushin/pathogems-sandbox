@@ -1,0 +1,33 @@
+{
+  "name": "brca_omics_l1",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 2000,
+  "model": "omics_mlp",
+  "l1_weight": 1e-05,
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Baseline improvement 2/5: l1_weight=1e-5 adds an L1 penalty on the first linear layer's weights (1000 genes \u00d7 128 hidden units = 128k weights). Cox PH loss is O(1) after normalisation by n_events; at O(0.1) average weight magnitude a 1e-5 coefficient adds ~0.13 to the loss \u2014 mild sparsity pressure that encourages the model to ignore uninformative genes rather than fitting noise. The L1 penalty complements weight_decay (L2), which shrinks all weights evenly. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "config_version": 1
+}

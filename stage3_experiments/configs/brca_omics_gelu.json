@@ -1,0 +1,33 @@
+{
+  "name": "brca_omics_gelu",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 2000,
+  "model": "omics_mlp",
+  "activation": "gelu",
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Baseline improvement 7/10: activation='gelu' replaces ReLU with the Gaussian Error Linear Unit. GELU smoothly gates the input by its Gaussian CDF \u2014 unlike ReLU it has a non-zero gradient for slightly-negative inputs, which eliminates the dying-neuron failure mode. It has been the default activation in transformer FFNs (BERT, GPT) since 2018 and consistently outperforms ReLU on NLP tasks; its smooth gradient landscape may also help convergence in the full-batch Cox training setting where each update is deterministic. Weight init switches from Kaiming to Xavier uniform, which does not assume a specific nonlinearity shape. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "config_version": 1
+}

@@ -1,0 +1,34 @@
+{
+  "name": "brca_pathway_mlp_kegg_layernorm",
+  "cohort": "TCGA-BRCA",
+  "seed": 20260413,
+  "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
+  "modalities": [
+    "RNA_seq"
+  ],
+  "top_k_genes": 3000,
+  "model": "pathway_mlp",
+  "pathway_db": "c2_kegg",
+  "pathway_norm": "layer",
+  "hidden_dims": [
+    128,
+    32
+  ],
+  "dropout": 0.3,
+  "use_batchnorm": true,
+  "loss": "cox_ph",
+  "optimizer": "adam",
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "batch_size": null,
+  "max_grad_norm": 1.0,
+  "epochs": 200,
+  "early_stopping_patience": 10,
+  "val_fraction": 0.1,
+  "n_folds": 5,
+  "enable_mlflow": false,
+  "mlflow_tracking_uri": null,
+  "mlflow_experiment_name": "pathogems",
+  "notes": "Ablation 4/4: pathway_norm=layer replaces BatchNorm1d with LayerNorm after the sparse pathway projection. BatchNorm normalises across the batch dimension and is sensitive to pathway-node scale differences (large pathways produce higher-magnitude activations). LayerNorm normalises across the pathway dimension per sample, making it invariant to absolute activation scale and to the number of genes per pathway. Hidden layers keep BatchNorm (use_batchnorm=true) \u2014 only the first norm layer changes. All other settings identical to brca_pathway_mlp_kegg (CI=0.564).",
+  "config_version": 1
+}

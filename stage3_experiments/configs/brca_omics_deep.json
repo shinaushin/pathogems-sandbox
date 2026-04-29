@@ -1,5 +1,5 @@
 {
-  "name": "brca_omics_topk2000",
+  "name": "brca_omics_deep",
   "cohort": "TCGA-BRCA",
   "seed": 20260413,
   "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
@@ -9,6 +9,7 @@
   "top_k_genes": 2000,
   "model": "omics_mlp",
   "hidden_dims": [
+    256,
     128,
     32
   ],
@@ -24,9 +25,9 @@
   "early_stopping_patience": 10,
   "val_fraction": 0.1,
   "n_folds": 5,
-  "enable_mlflow": true,
+  "enable_mlflow": false,
   "mlflow_tracking_uri": null,
   "mlflow_experiment_name": "pathogems",
-  "notes": "Continues the feature-scaling experiment: top_k_genes 1000 \u2192 2000, hidden_dims unchanged at [128, 32]. Tests whether the C-index gain from 500\u21921000 genes continues at 2000, or whether the added genes are too noisy to help on a ~900-patient cohort.",
+  "notes": "Baseline improvement 4/5: hidden_dims=[256, 128, 32] adds a wider first hidden layer and one additional depth level compared to the baseline [128, 32]. The extra capacity allows the model to learn more complex gene-gene interaction patterns before compressing to the risk scalar. Batch normalisation and dropout (both kept at default) should prevent the additional parameters from overfitting on the ~900-patient cohort. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
   "config_version": 1
 }

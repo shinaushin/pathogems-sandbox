@@ -1,5 +1,5 @@
 {
-  "name": "brca_pathway_mlp_kegg",
+  "name": "brca_pathway_mlp_kegg_residual",
   "cohort": "TCGA-BRCA",
   "seed": 20260413,
   "study_data_dir": "stage2_data/raw/brca_tcga_pan_can_atlas_2018",
@@ -9,6 +9,7 @@
   "top_k_genes": 3000,
   "model": "pathway_mlp",
   "pathway_db": "c2_kegg",
+  "pathway_residual": true,
   "hidden_dims": [
     128,
     32
@@ -28,6 +29,6 @@
   "enable_mlflow": false,
   "mlflow_tracking_uri": null,
   "mlflow_experiment_name": "pathogems",
-  "notes": "PathwayMLP with MSigDB C2 KEGG gene sets (~186 canonical pathways, ~7000 unique genes) instead of Hallmark (~50 pathways, ~4383 genes). At top_k_genes=3000 the Hallmark run assigned only 711/3000 genes (24%). KEGG's broader coverage should assign ~50-60% of the top-3000 genes, giving the MaskedLinear first layer enough structured signal to be competitive with the flat MLP baseline (C-index ~0.601). More pathways also means finer-grained first-layer bottleneck.",
+  "notes": "Ablation 3/4: pathway_residual=True adds a dense skip connection W_skip (n_genes x n_pathways, no bias) that is added to the MaskedLinear output before normalisation and activation. This lets the model route signal through the pathway layer (structured, interpretable) or bypass it (dense, unconstrained) as needed \u2014 worst case it recovers flat-MLP-like behaviour; best case it augments pathway activations with direct gene contributions. The skip weights are Kaiming-initialised. All other settings identical to brca_pathway_mlp_kegg (CI=0.564).",
   "config_version": 1
 }
