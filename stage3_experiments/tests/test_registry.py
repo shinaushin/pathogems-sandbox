@@ -94,6 +94,31 @@ class TestConcreteRegistries:
         assert "adam" in OPTIMIZER_REGISTRY
         assert "sgd" in OPTIMIZER_REGISTRY
 
+    def test_optimizer_registry_has_adamw(self) -> None:
+        assert "adamw" in OPTIMIZER_REGISTRY
+
+    def test_adamw_factory_returns_adamw_optimizer(self) -> None:
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+
+        from pathogems.config import ExperimentConfig
+
+        cfg = ExperimentConfig(
+            name="adamw_test",
+            cohort="synthetic",
+            study_data_dir="",
+            optimizer="adamw",
+            lr=1e-3,
+            weight_decay=1e-4,
+            notes="AdamW factory test.",
+        )
+        params = nn.Linear(10, 1).parameters()
+        opt = OPTIMIZER_REGISTRY.get("adamw")(params, cfg)
+        assert isinstance(opt, optim.AdamW)
+        assert opt.defaults["lr"] == pytest.approx(1e-3)
+        assert opt.defaults["weight_decay"] == pytest.approx(1e-4)
+
     def test_typo_in_optimizer_name_surfaces_hint(self) -> None:
         # This is the exact bug the registry was introduced to catch:
         # a config typo should tell the user what they likely meant rather

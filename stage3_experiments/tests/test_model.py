@@ -6,6 +6,31 @@ import pytest
 import torch
 
 from pathogems.model import LinearCox, OmicsMLP, OmicsMLPConfig
+from pathogems.models.omics_mlp import _make_activation
+
+
+class TestMakeActivation:
+    def test_relu_returns_relu_module(self) -> None:
+        import torch.nn as nn
+
+        act = _make_activation("relu")
+        assert isinstance(act, nn.ReLU)
+
+    def test_gelu_returns_gelu_module(self) -> None:
+        import torch.nn as nn
+
+        act = _make_activation("gelu")
+        assert isinstance(act, nn.GELU)
+
+    def test_silu_returns_silu_module(self) -> None:
+        import torch.nn as nn
+
+        act = _make_activation("silu")
+        assert isinstance(act, nn.SiLU)
+
+    def test_unknown_activation_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown activation"):
+            _make_activation("tanh")
 
 
 class TestOmicsMLPConfig:
@@ -20,6 +45,10 @@ class TestOmicsMLPConfig:
     def test_rejects_dropout_out_of_range(self) -> None:
         with pytest.raises(ValueError, match="dropout"):
             OmicsMLPConfig(in_features=10, dropout=1.0)
+
+    def test_rejects_unknown_activation(self) -> None:
+        with pytest.raises(ValueError, match="activation"):
+            OmicsMLPConfig(in_features=10, activation="tanh")
 
 
 class TestOmicsMLP:
@@ -59,6 +88,20 @@ class TestOmicsMLP:
         x = torch.randn(4, 30)
         # No dropout in eval mode, two calls must match exactly.
         torch.testing.assert_close(model(x), model(x))
+
+    def test_gelu_activation_forward_shape(self) -> None:
+        """GELU activation path: forward, init, and activation module all exercised."""
+        cfg = OmicsMLPConfig(in_features=50, activation="gelu", use_batchnorm=False)
+        model = OmicsMLP(cfg).eval()
+        out = model(torch.randn(8, 50))
+        assert out.shape == (8,)
+
+    def test_silu_activation_forward_shape(self) -> None:
+        """SiLU activation path: forward, init, and activation module all exercised."""
+        cfg = OmicsMLPConfig(in_features=50, activation="silu", use_batchnorm=False)
+        model = OmicsMLP(cfg).eval()
+        out = model(torch.randn(8, 50))
+        assert out.shape == (8,)
 
 
 class TestLinearCox:
