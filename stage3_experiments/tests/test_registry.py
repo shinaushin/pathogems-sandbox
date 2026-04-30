@@ -98,7 +98,6 @@ class TestConcreteRegistries:
         assert "adamw" in OPTIMIZER_REGISTRY
 
     def test_adamw_factory_returns_adamw_optimizer(self) -> None:
-        import torch
         import torch.nn as nn
         import torch.optim as optim
 

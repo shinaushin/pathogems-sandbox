@@ -58,6 +58,10 @@ filterwarnings = [
   "error",
   # But let known third-party deprecations through.
   "ignore::DeprecationWarning:pkg_resources",
+  # PyTorch's SequentialLR internally calls .step(epoch=...) on its child
+  # schedulers, triggering this deprecation from within torch itself.
+  # There is no fix on our side — suppress until PyTorch resolves it.
+  "ignore:The epoch parameter in `scheduler.step\\(\\)`:UserWarning",
 ]
 
 # ---------------------------------------------------------------------------
