@@ -243,7 +243,7 @@ def train_one_fold(
 
     # Each model declares its own L1 target via RegularizableMixin.regularized_weight.
     # None means "skip L1 for this architecture" (e.g. GeneAttentionNet).
-    reg_weight = model.regularized_weight if config.l1_weight > 0.0 else None  # type: ignore[attr-defined]
+    reg_weight = model.regularized_weight if config.l1_weight > 0.0 else None
 
     best_val = float("inf")
     best_epoch = 0

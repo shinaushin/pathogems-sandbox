@@ -19,19 +19,18 @@ The ModelFactory callable signature is:
     factory(in_features: int, config: ExperimentConfig, selected_genes: list[str]) -> nn.Module
 """
 
-from ._mixin import RegularizableMixin
-from ._registry import MODEL_REGISTRY, ModelFactory
-
 # Import submodules to trigger @MODEL_REGISTRY.register(...) decorators.
 from . import gene_attention as gene_attention
 from . import linear_cox as linear_cox
 from . import omics_mlp as omics_mlp
 from . import pathway_mlp as pathway_mlp
+from ._mixin import RegularizableMixin
+from ._registry import MODEL_REGISTRY, ModelFactory
 
 # Re-export model classes for callers that need them by name.
 from .gene_attention import GeneAttentionNet
 from .linear_cox import LinearCox
-from .omics_mlp import OmicsMLPConfig, OmicsMLP
+from .omics_mlp import OmicsMLP, OmicsMLPConfig
 from .pathway_mlp import MaskedLinear, PathwayMLP
 
 __all__ = [

@@ -5,16 +5,16 @@ existing code using ``from .model import MODEL_REGISTRY`` continues to work
 without modification.  New code should import from ``.models`` directly.
 """
 
-from .models import (  # noqa: F401
+from .models import (
     MODEL_REGISTRY,
-    ModelFactory,
-    RegularizableMixin,
-    OmicsMLPConfig,
-    OmicsMLP,
+    GeneAttentionNet,
     LinearCox,
     MaskedLinear,
+    ModelFactory,
+    OmicsMLP,
+    OmicsMLPConfig,
     PathwayMLP,
-    GeneAttentionNet,
+    RegularizableMixin,
 )
 
 __all__ = [

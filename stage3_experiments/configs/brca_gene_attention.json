@@ -6,7 +6,7 @@
   "modalities": [
     "RNA_seq"
   ],
-  "top_k_genes": 500,
+  "top_k_genes": 2000,
   "model": "gene_attention",
   "hidden_dims": [
     128,
@@ -30,6 +30,6 @@
   "enable_mlflow": true,
   "mlflow_tracking_uri": null,
   "mlflow_experiment_name": "pathogems",
-  "notes": "Transformer encoder treating each gene as a sequence token. Each gene i becomes a d_model=64 embedding via value_proj(x_i) + gene_emb_i, where gene_emb_i is a learnable per-gene identity vector. 2-layer TransformerEncoder (4 heads) is followed by mean-pooling and a linear Cox head. top_k_genes=500 and batch_size=32 are chosen to keep full self-attention (O(n^2)) memory-feasible on CPU (~128 MB attention tensors). dropout reduced to 0.1 from the MLP default as Transformer dropout acts on attention weights and FFN, providing its own regularization.",
+  "notes": "Transformer encoder treating each gene as a sequence token. Each gene i becomes a d_model=64 embedding via value_proj(x_i) + gene_emb_i, where gene_emb_i is a learnable per-gene identity vector. 2-layer TransformerEncoder (4 heads) is followed by mean-pooling and a linear Cox head. top_k_genes=2000 with batch_size=32; full self-attention is O(n^2) so at n=2000 each attention matrix is 4M entries — expect ~2 GB GPU memory per layer at float32. If OOM, reduce batch_size to 8 or 16. dropout reduced to 0.1 from the MLP default as Transformer dropout acts on attention weights and FFN, providing its own regularization.",
   "config_version": 1
 }
