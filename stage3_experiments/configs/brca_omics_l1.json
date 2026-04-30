@@ -18,7 +18,7 @@
   "loss": "cox_ph",
   "optimizer": "adam",
   "lr": 0.0001,
-  "weight_decay": 0.0001,
+  "weight_decay": 0.0,
   "batch_size": null,
   "max_grad_norm": 1.0,
   "epochs": 200,
@@ -28,6 +28,6 @@
   "enable_mlflow": false,
   "mlflow_tracking_uri": null,
   "mlflow_experiment_name": "pathogems",
-  "notes": "Baseline improvement 2/5: l1_weight=1e-5 adds an L1 penalty on the first linear layer's weights (1000 genes \u00d7 128 hidden units = 128k weights). Cox PH loss is O(1) after normalisation by n_events; at O(0.1) average weight magnitude a 1e-5 coefficient adds ~0.13 to the loss \u2014 mild sparsity pressure that encourages the model to ignore uninformative genes rather than fitting noise. The L1 penalty complements weight_decay (L2), which shrinks all weights evenly. All other settings identical to brca_omics_topk1000 (CI=0.6017).",
+  "notes": "Pure L1 regularisation: l1_weight=1e-5 on the first linear layer's weights with weight_decay=0 (no L2). Isolates the effect of sparsity pressure alone \u2014 the companion brca_omics_elastic_net run keeps weight_decay=1e-4, so comparing the two separates the contribution of L1 sparsity from the L1+L2 combination. With weight_decay=0, all weight shrinkage comes exclusively from the L1 penalty on the input projection (2000\u00d7128 = 256k weights); all other layers are unregularised beyond dropout and gradient clipping.",
   "config_version": 1
 }

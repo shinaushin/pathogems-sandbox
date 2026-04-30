@@ -89,8 +89,8 @@ _DEFAULT_DATASET_SLUG = "tcga-brca-pan-cancer-atlas"
 #: Seconds between status polls while waiting for the kernel to finish.
 POLL_INTERVAL_SEC = 30
 
-#: Hard timeout — 90 min is generous for a 5-fold CV on TCGA-BRCA CPU/GPU.
-MAX_WAIT_SEC = 5400
+#: Hard timeout — 250 min covers multi-experiment GPU runs on TCGA-BRCA.
+MAX_WAIT_SEC = 15000
 
 #: This file lives in stage3_experiments/scripts/, so:
 _STAGE3_ROOT = Path(__file__).resolve().parent.parent  # stage3_experiments/
