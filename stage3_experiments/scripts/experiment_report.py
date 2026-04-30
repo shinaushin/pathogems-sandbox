@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -491,7 +491,7 @@ def generate_report(logs_dir: Path, out_path: Path) -> None:
         )
     baseline_cfg = baseline_run.get("config", {}) if baseline_run is not None else {}
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     n = len(runs)
 
     summary_rows = "".join(_html_summary_row(r, baseline_cfg, i) for i, r in enumerate(runs))
