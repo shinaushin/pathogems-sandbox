@@ -42,6 +42,7 @@ import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -306,12 +307,12 @@ try:
     import hydra
     from omegaconf import DictConfig, OmegaConf
 
-    @hydra.main(  # type: ignore[misc]
+    @hydra.main(
         version_base=None,
         config_path="../../configs",  # relative to this source file
         config_name="base",
     )
-    def hydra_main(cfg: DictConfig) -> None:  # type: ignore[misc]
+    def hydra_main(cfg: DictConfig) -> None:
         """Hydra entry point; composes config from base.yaml + experiment override.
 
         The ``runtime`` sub-key carries the non-ExperimentConfig settings
@@ -344,9 +345,12 @@ try:
         )
 
         # Convert DictConfig → plain dict, drop the runtime sub-key.
-        cfg_dict = OmegaConf.to_container(cfg, resolve=True)
-        if not isinstance(cfg_dict, dict):
-            raise TypeError(f"Expected dict from OmegaConf, got {type(cfg_dict)}")
+        # OmegaConf.to_container returns a wide union type; we assert str keys
+        # because base.yaml only contains string-keyed mappings.
+        raw = OmegaConf.to_container(cfg, resolve=True)
+        if not isinstance(raw, dict):
+            raise TypeError(f"Expected dict from OmegaConf, got {type(raw)}")
+        cfg_dict: dict[str, Any] = {str(k): v for k, v in raw.items()}
         cfg_dict.pop("runtime", None)
 
         # Validate and construct the experiment config. from_dict raises
@@ -363,7 +367,7 @@ try:
 
 except ImportError:  # pragma: no cover
 
-    def hydra_main() -> None:  # type: ignore[misc]
+    def hydra_main() -> None:
         """Stub: hydra-core is not installed."""
         print(
             "hydra-core is required for pathogems-train-hydra.\n"
