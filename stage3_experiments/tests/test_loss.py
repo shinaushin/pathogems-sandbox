@@ -82,6 +82,46 @@ class TestCoxPHLoss:
         with pytest.raises(ValueError):
             cox_ph_loss(torch.zeros(5, 1), torch.zeros(5), torch.zeros(5))
 
+    def test_tied_survival_times_finite(self) -> None:
+        """Multiple patients sharing the same time — Breslow tie handling must not NaN.
+
+        Breslow approximation treats tied times as a single risk set (the
+        cumulative logsum covers all positions in the sorted order), so the
+        loss must be finite even when many patients share an identical time.
+        """
+        # Five patients: two tied at time 10, two tied at time 20, one at 30.
+        risk = torch.tensor([0.5, -0.5, 1.0, -1.0, 0.0])
+        time = torch.tensor([10.0, 10.0, 20.0, 20.0, 30.0])
+        event = torch.tensor([1.0, 0.0, 1.0, 1.0, 0.0])
+        loss = cox_ph_loss(risk, time, event)
+        assert torch.isfinite(loss).item(), f"Loss was not finite: {loss}"
+
+    def test_all_events_finite(self) -> None:
+        """Every patient dies — a valid (if unusual) batch. Loss must be finite."""
+        torch.manual_seed(3)
+        risk = torch.randn(12)
+        time = torch.rand(12) * 100 + 1.0  # all positive
+        event = torch.ones(12)  # all events
+        loss = cox_ph_loss(risk, time, event)
+        assert torch.isfinite(loss).item(), f"Loss was not finite with all events: {loss}"
+
+    def test_single_event_finite(self) -> None:
+        """Batch with only one event — the risk set for that event is all others.
+
+        This is the extreme case of event scarcity: the partial likelihood
+        has a single term and the normalisation is by 1. Should still give
+        a finite, meaningful loss.
+        """
+        risk = torch.tensor([2.0, 0.5, -0.5, -1.0, 0.0])
+        time = torch.tensor([5.0, 10.0, 20.0, 30.0, 40.0])
+        event = torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0])  # only one event
+        loss = cox_ph_loss(risk, time, event)
+        assert torch.isfinite(loss).item(), f"Single-event loss was not finite: {loss}"
+        # Manually verify: only one term: -(risk[0] - log(exp(r[0]) + ... + exp(r[4])))
+        # The event patient (index 0) has the shortest time, so all others are in its risk set.
+        ref = _naive_cox(risk, time, event)
+        torch.testing.assert_close(loss, ref, rtol=1e-4, atol=1e-4)
+
     def test_monotone_shift_invariance(self) -> None:
         """Adding a constant to every risk must not change the loss.
 

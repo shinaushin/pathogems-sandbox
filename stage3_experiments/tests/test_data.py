@@ -253,6 +253,35 @@ class TestPreprocessor:
         with pytest.raises(ValueError, match="No genes passed"):
             Preprocessor(top_k=5, min_expressed_fraction=0.5).fit(cohort.expression)
 
+    def test_all_zero_expression_row_does_not_crash(self) -> None:
+        """A patient with all-zero raw expression values is processed without error.
+
+        All-zero means log₂(0 + 1) = 0 for every gene. The patient's values
+        are still finite after log transform, so they should pass through
+        the gene selection and robust z-score without raising. The scaled row
+        will be non-zero (centred by the training median, which is > 0 for
+        expressed genes), so the output must be finite.
+        """
+        rng = np.random.default_rng(42)
+        n_patients, n_genes = 40, 20
+        patients = [f"P{i:03d}" for i in range(n_patients)]
+        genes = [f"G{i:03d}" for i in range(n_genes)]
+        # Typical expression values for most patients.
+        values = rng.uniform(10, 500, size=(n_patients, n_genes))
+        # Patient 0 has all-zero raw expression.
+        values[0, :] = 0.0
+        expr = pd.DataFrame(values, index=patients, columns=genes)
+        event = pd.Series(rng.binomial(1, 0.4, n_patients), index=patients)
+        time = pd.Series(rng.uniform(1, 120, n_patients), index=patients)
+
+        train_expr = expr.iloc[1:]  # fit on non-zero rows only
+        pre = Preprocessor(top_k=5).fit(train_expr)
+        x_train = pre.transform(train_expr)
+        x_test = pre.transform(expr.iloc[:1])  # the all-zero patient
+
+        assert np.all(np.isfinite(x_train)), "Training transform produced non-finite values"
+        assert np.all(np.isfinite(x_test)), "All-zero patient transform produced non-finite values"
+
     def test_min_expressed_fraction_filters_gene_universe(self) -> None:
         """Genes expressed in < min_expressed_fraction of samples are excluded."""
         rng = np.random.default_rng(42)

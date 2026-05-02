@@ -241,6 +241,33 @@ class ExperimentConfig:
     config_version: int = 1
 
     # ---------------------------------------------------------------------- #
+    # Validation
+    # ---------------------------------------------------------------------- #
+
+    def __post_init__(self) -> None:
+        """Validate field values immediately on construction.
+
+        Raises:
+            ValueError: on any out-of-range or logically invalid field value.
+        """
+        if self.lr <= 0.0:
+            raise ValueError(f"lr must be > 0; got {self.lr}")
+        if not (0.0 <= self.swa_start_fraction < 1.0):
+            raise ValueError(
+                f"swa_start_fraction must be in [0.0, 1.0); got {self.swa_start_fraction}"
+            )
+        if self.n_folds < 2:
+            raise ValueError(f"n_folds must be >= 2; got {self.n_folds}")
+        if not (0.0 < self.val_fraction < 1.0):
+            raise ValueError(
+                f"val_fraction must be in (0.0, 1.0); got {self.val_fraction}"
+            )
+        if self.epochs < 1:
+            raise ValueError(f"epochs must be >= 1; got {self.epochs}")
+        if self.top_k_genes < 1:
+            raise ValueError(f"top_k_genes must be >= 1; got {self.top_k_genes}")
+
+    # ---------------------------------------------------------------------- #
     # Grouped sub-config views (no new data — just named projections)
     # ---------------------------------------------------------------------- #
 

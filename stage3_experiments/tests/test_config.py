@@ -55,3 +55,60 @@ class TestExperimentConfig:
     def test_batch_size_default_is_none(self) -> None:
         """The default is full-batch (ADR 0007)."""
         assert ExperimentConfig(name="x").batch_size is None
+
+    # ---------------------------------------------------------------------- #
+    # __post_init__ validation
+    # ---------------------------------------------------------------------- #
+
+    def test_invalid_lr_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="lr must be > 0"):
+            ExperimentConfig(name="x", lr=0.0)
+
+    def test_invalid_lr_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="lr must be > 0"):
+            ExperimentConfig(name="x", lr=-1e-3)
+
+    def test_swa_fraction_one_raises(self) -> None:
+        with pytest.raises(ValueError, match="swa_start_fraction"):
+            ExperimentConfig(name="x", swa_start_fraction=1.0)
+
+    def test_swa_fraction_above_one_raises(self) -> None:
+        with pytest.raises(ValueError, match="swa_start_fraction"):
+            ExperimentConfig(name="x", swa_start_fraction=1.5)
+
+    def test_n_folds_one_raises(self) -> None:
+        with pytest.raises(ValueError, match="n_folds must be >= 2"):
+            ExperimentConfig(name="x", n_folds=1)
+
+    def test_val_fraction_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="val_fraction"):
+            ExperimentConfig(name="x", val_fraction=0.0)
+
+    def test_val_fraction_one_raises(self) -> None:
+        with pytest.raises(ValueError, match="val_fraction"):
+            ExperimentConfig(name="x", val_fraction=1.0)
+
+    def test_epochs_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="epochs must be >= 1"):
+            ExperimentConfig(name="x", epochs=0)
+
+    def test_top_k_genes_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="top_k_genes must be >= 1"):
+            ExperimentConfig(name="x", top_k_genes=0)
+
+    def test_malformed_json_raises(self, tmp_path: Path) -> None:
+        """from_json must surface json.JSONDecodeError on malformed files."""
+        bad = tmp_path / "bad.json"
+        bad.write_text("{not valid json")
+        with pytest.raises(Exception):  # json.JSONDecodeError is a ValueError subclass
+            ExperimentConfig.from_json(bad)
+
+    def test_valid_boundary_swa_fraction_zero(self) -> None:
+        """swa_start_fraction=0.0 is the disable sentinel — must be accepted."""
+        cfg = ExperimentConfig(name="x", swa_start_fraction=0.0)
+        assert cfg.swa_start_fraction == 0.0
+
+    def test_valid_boundary_n_folds_two(self) -> None:
+        """n_folds=2 is the minimum valid value."""
+        cfg = ExperimentConfig(name="x", n_folds=2)
+        assert cfg.n_folds == 2
