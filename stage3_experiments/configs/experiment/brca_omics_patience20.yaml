@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_patience20
+epochs: 200
+early_stopping_patience: 20
+enable_mlflow: true
+notes: "Identical to brca_omics_baseline except early_stopping_patience raised from 10 to 20. Hypothesis: fold 4 fired early stopping after only 11 epochs due to noisy val-loss signal; allowing twice the patience should let it recover."

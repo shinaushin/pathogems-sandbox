@@ -1,0 +1,8 @@
+# @package _global_
+name: brca_pathway_mlp_kegg_filtered
+top_k_genes: 5000
+model: pathway_mlp
+pathway_db: c2_kegg
+pathway_only: true
+epochs: 200
+notes: "Ablation 1/4: pathway_only=True eliminates the UNASSIGNED catch-all node by filtering input genes to only those that map to at least one C2 KEGG pathway. top_k raised to 5000 so ~2750 pathway-assigned genes survive the variance pre-selection (~55% of C2 KEGG's 7012 unique genes). Every gene feeding the MaskedLinear is a real pathway member, giving each pathway node a clean, biologically-grounded signal. Baseline for comparison: brca_pathway_mlp_kegg (CI=0.564, top_k=3000, no filtering)."

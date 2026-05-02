@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_adamw
+top_k_genes: 2000
+optimizer: adamw
+epochs: 200
+notes: "Baseline improvement 6/10: optimizer='adamw' switches from Adam to AdamW. In vanilla Adam the weight_decay term is divided by the adaptive second-moment estimate, so frequently-updated parameters are regularised less than infrequently-updated ones — an unintended interaction. AdamW decouples weight decay from the gradient update entirely, making the L2 penalty apply uniformly regardless of gradient history. With weight_decay=1e-4 already set, this is a pure correctness fix at zero config cost. All other settings identical to brca_omics_topk1000 (CI=0.6017)."

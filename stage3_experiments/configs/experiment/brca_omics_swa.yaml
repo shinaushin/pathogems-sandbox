@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_swa
+top_k_genes: 2000
+epochs: 200
+swa_start_fraction: 0.5
+notes: "Baseline improvement 8/10: swa_start_fraction=0.5 enables Stochastic Weight Averaging (Izmailov et al., 2018) starting at epoch 100 (50% of 200). From that point the optimizer LR is held at lr×0.05 (5e-6) and an AveragedModel accumulates a uniform average of the weights at each subsequent epoch. SWA finds flatter minima than single-checkpoint training by averaging across the loss landscape's basin, which improves generalisation — particularly valuable on small cohorts (~900 patients) where the basin is sharp and the best checkpoint is sensitive to fold assignment. Early stopping operates only in the pre-SWA phase (epochs 1–100); if it fires before epoch 100 the model restores its best weights and continues into the SWA phase from that starting point. After the final epoch BatchNorm statistics are recalibrated on the training data (update_bn) before test evaluation. All other settings identical to brca_omics_topk1000 (CI=0.6017)."

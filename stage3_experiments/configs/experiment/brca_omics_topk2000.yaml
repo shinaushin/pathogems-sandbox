@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_topk2000
+top_k_genes: 2000
+epochs: 200
+enable_mlflow: true
+notes: "Continues the feature-scaling experiment: top_k_genes 1000 → 2000, hidden_dims unchanged at [128, 32]. Tests whether the C-index gain from 500→1000 genes continues at 2000, or whether the added genes are too noisy to help on a ~900-patient cohort."

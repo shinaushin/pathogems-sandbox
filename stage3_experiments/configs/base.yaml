@@ -1,0 +1,109 @@
+# Base configuration for pathogems-train-hydra.
+#
+# All fields mirror ExperimentConfig defaults. Per-experiment overrides live
+# in configs/experiment/<name>.yaml and are merged in via the Hydra CLI:
+#
+#     pathogems-train-hydra +experiment=brca_omics_baseline
+#
+# You can also override individual fields directly on the command line:
+#
+#     pathogems-train-hydra +experiment=brca_omics_baseline lr=1e-3 epochs=100
+#
+# And run parameter sweeps with Hydra multirun:
+#
+#     pathogems-train-hydra -m +experiment=brca_omics_baseline,brca_omics_topk1000 lr=1e-4,1e-3
+#
+# See https://hydra.cc/docs/intro for full documentation.
+
+defaults:
+  - _self_   # merge order: fields below win over any defaults_list entries
+
+# ---------------------------------------------------------------------------
+# Runtime settings (not part of ExperimentConfig — stripped before from_dict)
+# ---------------------------------------------------------------------------
+runtime:
+  logs_dir: stage3_experiments/logs
+  device: cpu
+  quiet: false
+  no_report: false
+
+# ---------------------------------------------------------------------------
+# ExperimentConfig fields — mirrors dataclass defaults exactly
+# ---------------------------------------------------------------------------
+
+# identity
+name: ???     # required; set via +experiment=<name> or name=<value> on CLI
+
+# data
+cohort: TCGA-BRCA
+seed: 20260413
+study_data_dir: stage2_data/raw/brca_tcga_pan_can_atlas_2018
+modalities: [RNA_seq]
+top_k_genes: 500
+
+# model
+model: omics_mlp
+hidden_dims: [128, 32]
+dropout: 0.3
+use_batchnorm: true
+
+# training
+loss: cox_ph
+optimizer: adam
+lr: 1.0e-4
+weight_decay: 1.0e-4
+batch_size: null
+max_grad_norm: 1.0
+epochs: 50
+early_stopping_patience: 10
+val_fraction: 0.1
+
+# evaluation
+n_folds: 5
+
+# pathway-informed model options (used by pathway_mlp; ignored by others)
+pathway_db: hallmark
+pathway_cache_dir: null
+pathway_only: false
+pathway_scaled_init: false
+pathway_residual: false
+pathway_norm: batch
+
+# flat-MLP ablation flags
+gene_selection: variance
+l1_weight: 0.0
+lr_schedule: constant
+activation: relu
+swa_start_fraction: 0.0
+lr_warmup_epochs: 0
+
+# attention model options (used by gene_attention; ignored by others)
+attn_d_model: 64
+attn_n_heads: 4
+attn_n_layers: 2
+
+# experiment tracking
+enable_mlflow: false
+mlflow_tracking_uri: null
+mlflow_experiment_name: pathogems
+
+# free-form notes
+notes: null
+
+# schema version (do not change unless you bump ExperimentConfig.config_version)
+config_version: 1
+
+# ---------------------------------------------------------------------------
+# Hydra runtime settings
+# ---------------------------------------------------------------------------
+hydra:
+  run:
+    # Keep the working directory as-is. Without this, Hydra creates an
+    # outputs/<date>/<time>/ subdirectory and changes CWD there, which
+    # breaks all relative paths in configs (study_data_dir, logs_dir, …).
+    dir: .
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job:
+    chdir: false

@@ -1,0 +1,8 @@
+# @package _global_
+name: brca_pathway_mlp_kegg_layernorm
+top_k_genes: 3000
+model: pathway_mlp
+pathway_db: c2_kegg
+pathway_norm: layer
+epochs: 200
+notes: "Ablation 4/4: pathway_norm=layer replaces BatchNorm1d with LayerNorm after the sparse pathway projection. BatchNorm normalises across the batch dimension and is sensitive to pathway-node scale differences (large pathways produce higher-magnitude activations). LayerNorm normalises across the pathway dimension per sample, making it invariant to absolute activation scale and to the number of genes per pathway. Hidden layers keep BatchNorm (use_batchnorm=true) — only the first norm layer changes. All other settings identical to brca_pathway_mlp_kegg (CI=0.564)."

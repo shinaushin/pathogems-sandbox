@@ -1,0 +1,7 @@
+# @package _global_
+name: brca_omics_l1
+top_k_genes: 2000
+l1_weight: 1.0e-05
+weight_decay: 0.0
+epochs: 200
+notes: "Pure L1 regularisation: l1_weight=1e-5 on the first linear layer's weights with weight_decay=0 (no L2). Isolates the effect of sparsity pressure alone — the companion brca_omics_elastic_net run keeps weight_decay=1e-4, so comparing the two separates the contribution of L1 sparsity from the L1+L2 combination. With weight_decay=0, all weight shrinkage comes exclusively from the L1 penalty on the input projection (2000×128 = 256k weights); all other layers are unregularised beyond dropout and gradient clipping."

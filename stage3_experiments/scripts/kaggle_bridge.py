@@ -53,6 +53,46 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+
+# ---------------------------------------------------------------------------
+# Config loading (JSON and YAML)
+# ---------------------------------------------------------------------------
+
+
+def _load_config(config_path: Path) -> dict:
+    """Load an experiment config from a JSON or YAML file.
+
+    JSON configs are read directly.  YAML configs (``*.yaml`` / ``*.yml``)
+    are loaded via OmegaConf so they follow the same merge semantics as the
+    Hydra CLI.  The ``runtime`` sub-key (added by ``base.yaml``) is stripped
+    before returning so the dict is a flat ExperimentConfig-compatible payload.
+
+    Args:
+        config_path: Path to a ``.json`` or ``.yaml`` experiment config.
+
+    Returns:
+        Plain Python dict suitable for ``ExperimentConfig.from_dict``.
+    """
+    suffix = config_path.suffix.lower()
+    if suffix in (".yaml", ".yml"):
+        try:
+            from omegaconf import OmegaConf  # type: ignore[import-untyped]
+        except ImportError:
+            print(
+                "Loading YAML configs requires omegaconf.\n"
+                "Install it with:  pip install hydra-core>=1.3",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        cfg = OmegaConf.load(config_path)
+        d = OmegaConf.to_container(cfg, resolve=True)
+        if isinstance(d, dict):
+            d.pop("runtime", None)   # strip Hydra runtime block
+            return d
+        raise TypeError(f"Expected dict from OmegaConf.load({config_path}), got {type(d)}")
+    else:
+        return json.loads(config_path.read_text())
+
 # ---------------------------------------------------------------------------
 # Dependency checks — fail fast before doing any work
 # ---------------------------------------------------------------------------
@@ -917,7 +957,7 @@ def dry_run(
     Returns:
         ``True`` if all local steps succeeded; ``False`` on any error.
     """
-    config = json.loads(config_path.read_text())
+    config = _load_config(config_path)
     slug = kernel_slug or _make_kernel_slug(config, config_path)
     username = _kaggle_username()
 
@@ -1062,7 +1102,7 @@ def run_bridge(
         _log("ERROR: --data-dir and --dataset-ref are mutually exclusive.")
         return False
 
-    config = json.loads(config_path.read_text())
+    config = _load_config(config_path)
     slug = kernel_slug or _make_kernel_slug(config, config_path)
 
     _log(f"Experiment: {config.get('name', config_path.stem)}")
@@ -1164,8 +1204,10 @@ def main() -> None:
         required=True,
         type=Path,
         help=(
-            "Path to experiment config JSON "
-            "(e.g. stage3_experiments/configs/brca_omics_baseline.json)."
+            "Path to experiment config — JSON or YAML. "
+            "JSON: stage3_experiments/configs/brca_omics_baseline.json. "
+            "YAML: stage3_experiments/configs/experiment/brca_omics_baseline.yaml "
+            "(requires omegaconf / hydra-core)."
         ),
     )
     p.add_argument(

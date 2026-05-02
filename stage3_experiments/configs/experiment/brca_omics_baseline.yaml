@@ -1,0 +1,5 @@
+# @package _global_
+name: brca_omics_baseline
+epochs: 200
+enable_mlflow: true
+notes: "ADR 0001/0002/0004/0007 baseline. Omics-only MLP on top-500 variable genes, Cox PH loss, 5-fold stratified CV, full-batch gradient descent (batch_size=null)."

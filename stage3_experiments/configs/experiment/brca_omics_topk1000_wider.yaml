@@ -1,0 +1,7 @@
+# @package _global_
+name: brca_omics_topk1000_wider
+top_k_genes: 1000
+hidden_dims: [256, 64]
+epochs: 200
+enable_mlflow: true
+notes: "Builds on brca_omics_topk1000: widens hidden layers from [128, 32] to [256, 64] to relieve the bottleneck created by feeding 1000 genes into a 128-unit first layer. Tests whether giving the network enough capacity to process the wider input improves on the topk1000 result."

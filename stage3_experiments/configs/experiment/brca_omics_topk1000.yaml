@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_topk1000
+top_k_genes: 1000
+epochs: 200
+enable_mlflow: true
+notes: "Identical to brca_omics_baseline except top_k_genes raised from 500 to 1000. Hypothesis: doubling the gene feature set gives the model access to additional prognostic signal that the top-500 cut-off excludes. Risk: wider input may increase overfitting on the ~900-patient cohort."

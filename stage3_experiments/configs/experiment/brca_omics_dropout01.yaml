@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_dropout01
+dropout: 0.1
+epochs: 200
+enable_mlflow: true
+notes: "Identical to brca_omics_baseline except dropout reduced from 0.3 to 0.1. Hypothesis: 0.3 dropout may be too aggressive for a ~900-patient cohort, starving the network of signal during training. Reducing to 0.1 allows more information flow while retaining some regularisation."

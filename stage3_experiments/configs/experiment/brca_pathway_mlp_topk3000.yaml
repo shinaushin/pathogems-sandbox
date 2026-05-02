@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_pathway_mlp_topk3000
+top_k_genes: 3000
+model: pathway_mlp
+epochs: 200
+notes: "PathwayMLP with top_k_genes raised from 1000 to 3000. At 1000 genes only ~244/1000 (24%) map to MSigDB Hallmark pathways, putting 756 genes in a single UNASSIGNED node and neutering the sparse layer. At 3000 genes the expected Hallmark coverage rises to ~650-700 genes (~22% of Hallmark's 4383 genes), giving the pathway layer enough structured signal to be useful. The UNASSIGNED pathway still captures high-variance genes outside Hallmark, so no information is discarded."

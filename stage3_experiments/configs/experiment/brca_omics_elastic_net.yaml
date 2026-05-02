@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_elastic_net
+top_k_genes: 2000
+l1_weight: 1.0e-05
+epochs: 200
+notes: "Baseline improvement 9/10: elastic net regularisation combining L1 (l1_weight=1e-5) with L2 (weight_decay=1e-4). L1 alone (brca_omics_l1, CI=TBD) drives sparsity — pushing weights for uninformative genes toward exactly zero — but can be unstable when genes are correlated (many paths through correlated gene blocks are equally valid). L2 alone (weight_decay) shrinks all weights uniformly but never zeros them out. Elastic net gets sparsity from L1 while L2 stabilises the solution under correlation: when two genes are equally informative, L2 keeps both at moderate weight instead of arbitrarily zeroing one. For RNA-seq data with well-known pathway co-expression structure this combination is theoretically motivated. The L1 penalty targets the first linear layer's weights (1000×128 = 128k weights) via model.regularized_weight; L2 weight_decay acts on all parameters. All other settings identical to brca_omics_topk1000 (CI=0.6017)."

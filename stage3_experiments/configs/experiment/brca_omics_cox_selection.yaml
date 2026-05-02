@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_cox_selection
+top_k_genes: 2000
+gene_selection: cox
+epochs: 200
+notes: "Baseline improvement 1/5: gene_selection='cox' replaces variance-based top-k with supervised selection. Genes are ranked per fold by event-weighted Spearman correlation between log-expression rank and survival-time rank (weight = event indicator, so censored samples contribute no signal). This selects genes that are actually predictive of outcome rather than merely the most variable. Selection is fit on the training fold only — survival labels never touch the test fold. All other settings identical to brca_omics_topk1000 (CI=0.6017)."

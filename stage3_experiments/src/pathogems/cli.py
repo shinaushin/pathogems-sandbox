@@ -1,13 +1,36 @@
-"""Command-line entry point: `pathogems-train --config <path>`.
+"""Command-line entry points for pathogems training.
 
-The CLI is intentionally tiny: parse args, load config, load data, run CV,
-write run log, print a one-line summary. Anything more belongs in the
-library modules where it can be tested without spinning up a subprocess.
+Two entry points are registered:
 
-Failure handling: if anything below config-load throws, we still write a
-`status="failed"` run log with the traceback so Stage 4 sees an entry
-for the run instead of silence. Config load itself fails fast — we do
-not have a run name yet at that point, so there is nothing to log.
+``pathogems-train`` (legacy, backward-compatible)
+    Reads a JSON experiment config file via ``--config``.  All existing
+    configs and tests continue to work without modification.
+
+    Usage::
+
+        pathogems-train --config stage3_experiments/configs/brca_omics_baseline.json
+
+``pathogems-train-hydra`` (recommended)
+    Hydra-based entry point.  Base defaults come from
+    ``stage3_experiments/configs/base.yaml``; per-experiment overrides from
+    ``stage3_experiments/configs/experiment/<name>.yaml``; any field can be
+    further overridden on the command line.
+
+    Usage::
+
+        # Run a pre-defined experiment:
+        pathogems-train-hydra +experiment=brca_omics_baseline
+
+        # Override individual fields:
+        pathogems-train-hydra +experiment=brca_omics_baseline lr=1e-3 epochs=50
+
+        # Sweep with multirun (-m):
+        pathogems-train-hydra -m +experiment=brca_omics_baseline,brca_omics_topk1000 \\
+            lr=1e-4,1e-3
+
+Failure handling: if anything past config-load throws, we still write a
+``status="failed"`` run log so the results layer always has a record of the
+attempt. Config load itself fails fast (no run name yet, nothing to log).
 """
 
 from __future__ import annotations
@@ -36,35 +59,9 @@ from .train import cross_validate
 log = logging.getLogger(__name__)
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse CLI arguments and return the populated namespace."""
-    p = argparse.ArgumentParser(
-        prog="pathogems-train",
-        description="Train one Stage 3 experiment end-to-end and write a run log.",
-    )
-    p.add_argument("--config", type=Path, required=True, help="Path to experiment config JSON.")
-    p.add_argument(
-        "--logs-dir",
-        type=Path,
-        default=Path("stage3_experiments/logs"),
-        help="Directory to write the JSON run log. Default: stage3_experiments/logs",
-    )
-    p.add_argument(
-        "--device",
-        default="cpu",
-        help='Torch device string ("cpu" or "cuda"). The baseline runs in seconds on cpu.',
-    )
-    p.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Suppress per-fold progress lines.",
-    )
-    p.add_argument(
-        "--no-report",
-        action="store_true",
-        help="Skip refreshing the HTML experiment report after a successful run.",
-    )
-    return p.parse_args(argv)
+# --------------------------------------------------------------------------- #
+# Shared helpers
+# --------------------------------------------------------------------------- #
 
 
 def _validate_study_dir(study_dir: Path) -> None:
@@ -129,32 +126,35 @@ def _refresh_report(logs_dir: Path) -> None:
         )
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Run the full training pipeline for one experiment; return an exit code.
+def _run_training(
+    config: ExperimentConfig,
+    *,
+    logs_dir: Path,
+    device_str: str = "cpu",
+    quiet: bool = False,
+    no_report: bool = False,
+) -> int:
+    """Execute the full training pipeline for one experiment; return an exit code.
 
-    Orchestrates config loading, data assembly, QC, cross-validation, and run
-    logging. On any failure past config load, writes a ``status="failed"`` run
-    log before re-raising so Stage 4 always has a record of the attempt.
+    Orchestrates data assembly, QC, cross-validation, run logging, and
+    optionally report refresh. On any failure, writes a ``status="failed"``
+    run log before re-raising so the results layer always has a record.
+
+    Args:
+        config:     Fully-validated ExperimentConfig for this run.
+        logs_dir:   Directory to write the JSON run log.
+        device_str: Torch device string (``"cpu"`` or ``"cuda"``).
+        quiet:      Suppress per-fold progress lines.
+        no_report:  Skip refreshing the HTML experiment report.
+
+    Returns:
+        0 on success. Raises on failure (caller handles the exit code).
     """
-    args = _parse_args(argv)
-
-    # Configure logging early so all modules that use `logging` are wired up.
-    logging.basicConfig(
-        level=logging.DEBUG if not args.quiet else logging.WARNING,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-
-    # Fail fast on config errors — we have no run name to log against yet.
-    config = ExperimentConfig.from_json(args.config)
-
     study_dir = Path(config.study_data_dir)
     started_at = datetime.now(UTC)
-    # `track_run` yields a no-op tracker when enable_mlflow=False, so the
-    # happy and tracked paths are identical code.
+
     with track_run(config) as tracker:
         try:
-            # Validate study directory before entering the (slow) training loop.
             _validate_study_dir(study_dir)
             cohort = assemble_cohort(
                 expression_path=study_dir / "data_mrna_seq_v2_rsem.txt",
@@ -170,8 +170,6 @@ def main(argv: list[str] | None = None) -> int:
                 cohort.event_rate * 100,
             )
 
-            # Cohort-level QC (applied before CV splitting so no fold sees
-            # patients that were removed based on global properties).
             cohort = filter_zero_time_patients(cohort)
             cohort = remove_outlier_samples(cohort)
             cohort = clip_survival_time(cohort, max_months=120.0)
@@ -184,23 +182,20 @@ def main(argv: list[str] | None = None) -> int:
             tracker.log_metric("cohort_n_genes", float(cohort.n_genes))
             tracker.log_metric("cohort_event_rate", float(cohort.event_rate))
 
-            device = torch.device(args.device)
-            result = cross_validate(cohort, config, device=device, verbose=not args.quiet)
+            device = torch.device(device_str)
+            result = cross_validate(cohort, config, device=device, verbose=not quiet)
             tracker.log_cv_result(result)
 
             finished_at = datetime.now(UTC)
             log_path = write_run_log(
                 config=config,
                 result=result,
-                logs_dir=args.logs_dir,
+                logs_dir=logs_dir,
                 status="success",
                 error=None,
                 started_at=started_at,
                 finished_at=finished_at,
             )
-            # Attach the JSON run log as an MLflow artifact so the tracker
-            # has everything the run log has — single pane of glass when
-            # enabled, without sacrificing the run log as source of truth.
             tracker.log_artifact(log_path)
             log.info(
                 "DONE  C-index = %.4f +/- %.4f  (n_folds=%d)  log=%s",
@@ -210,37 +205,27 @@ def main(argv: list[str] | None = None) -> int:
                 log_path,
             )
 
-            # Refresh the HTML experiment report unless the caller opted out.
-            # Paths are derived from --logs-dir so nothing extra needs configuring:
-            #   logs-dir/../scripts/experiment_report.py
-            #   logs-dir/../reports/experiment_report.html
-            if not args.no_report:
-                _refresh_report(args.logs_dir)
+            if not no_report:
+                _refresh_report(logs_dir)
 
             return 0
 
-        except BaseException as exc:  # we want to catch everything, log, re-raise
-            # Any error past this point must produce a run log the schema
-            # recognizes (status="failed"), otherwise Stage 4 will treat
-            # the run as if it never happened.
+        except BaseException as exc:
             finished_at = datetime.now(UTC)
             tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             try:
                 log_path = write_run_log(
                     config=config,
                     result=None,
-                    logs_dir=args.logs_dir,
+                    logs_dir=logs_dir,
                     status="failed",
                     error=tb,
                     started_at=started_at,
                     finished_at=finished_at,
                 )
-                # Even on failure, attach what we have to the MLflow run
-                # so the tracker reflects reality.
                 tracker.log_artifact(log_path)
                 log.error("FAILED  %s: %s  log=%s", type(exc).__name__, exc, log_path)
             except Exception as log_exc:  # pragma: no cover - extremely defensive
-                # If even writing the failure log fails, surface both errors.
                 log.error(
                     "FAILED and could not write run log. "
                     "Original error: %s: %s. Log write error: %s: %s",
@@ -249,10 +234,143 @@ def main(argv: list[str] | None = None) -> int:
                     type(log_exc).__name__,
                     log_exc,
                 )
-            # Re-raise so shell `$?` reflects the failure and any wrapping
-            # script sees a non-zero exit. `SystemExit` and `KeyboardInterrupt`
-            # propagate naturally.
             raise
+
+
+# --------------------------------------------------------------------------- #
+# Legacy argparse entry point (pathogems-train)
+# --------------------------------------------------------------------------- #
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments and return the populated namespace."""
+    p = argparse.ArgumentParser(
+        prog="pathogems-train",
+        description="Train one Stage 3 experiment end-to-end and write a run log.",
+    )
+    p.add_argument("--config", type=Path, required=True, help="Path to experiment config JSON.")
+    p.add_argument(
+        "--logs-dir",
+        type=Path,
+        default=Path("stage3_experiments/logs"),
+        help="Directory to write the JSON run log. Default: stage3_experiments/logs",
+    )
+    p.add_argument(
+        "--device",
+        default="cpu",
+        help='Torch device string ("cpu" or "cuda"). The baseline runs in seconds on cpu.',
+    )
+    p.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress per-fold progress lines.",
+    )
+    p.add_argument(
+        "--no-report",
+        action="store_true",
+        help="Skip refreshing the HTML experiment report after a successful run.",
+    )
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Legacy argparse entry point; reads a JSON experiment config.
+
+    Orchestrates config loading, data assembly, QC, cross-validation, and
+    run logging. On any failure past config load, writes a ``status="failed"``
+    run log before re-raising so the results layer always has a record.
+    """
+    args = _parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.DEBUG if not args.quiet else logging.WARNING,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    config = ExperimentConfig.from_json(args.config)
+    return _run_training(
+        config,
+        logs_dir=args.logs_dir,
+        device_str=args.device,
+        quiet=args.quiet,
+        no_report=args.no_report,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Hydra entry point (pathogems-train-hydra)
+# --------------------------------------------------------------------------- #
+
+try:
+    import hydra
+    from omegaconf import DictConfig, OmegaConf
+
+    @hydra.main(  # type: ignore[misc]
+        version_base=None,
+        config_path="../../configs",  # relative to this source file
+        config_name="base",
+    )
+    def hydra_main(cfg: DictConfig) -> None:  # type: ignore[misc]
+        """Hydra entry point; composes config from base.yaml + experiment override.
+
+        The ``runtime`` sub-key carries the non-ExperimentConfig settings
+        (logs_dir, device, quiet, no_report). Everything else is forwarded
+        verbatim to ``ExperimentConfig.from_dict``.
+
+        Usage (from the project root)::
+
+            pathogems-train-hydra +experiment=brca_omics_baseline
+            pathogems-train-hydra +experiment=brca_omics_baseline lr=1e-3
+            pathogems-train-hydra -m +experiment=brca_omics_baseline,brca_omics_topk1000
+
+        See ``configs/base.yaml`` for all available fields and their defaults.
+        """
+        # Extract runtime settings before passing the rest to ExperimentConfig.
+        runtime = OmegaConf.to_container(cfg.runtime, resolve=True)
+        if not isinstance(runtime, dict):
+            runtime = {}
+
+        logs_dir = Path(str(runtime.get("logs_dir", "stage3_experiments/logs")))
+        device_str = str(runtime.get("device", "cpu"))
+        quiet = bool(runtime.get("quiet", False))
+        no_report = bool(runtime.get("no_report", False))
+
+        # Configure logging early.
+        logging.basicConfig(
+            level=logging.DEBUG if not quiet else logging.WARNING,
+            format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
+
+        # Convert DictConfig → plain dict, drop the runtime sub-key.
+        cfg_dict = OmegaConf.to_container(cfg, resolve=True)
+        if not isinstance(cfg_dict, dict):
+            raise TypeError(f"Expected dict from OmegaConf, got {type(cfg_dict)}")
+        cfg_dict.pop("runtime", None)
+
+        # Validate and construct the experiment config. from_dict raises
+        # ValueError for unknown fields, wrong types, or validation failures.
+        config = ExperimentConfig.from_dict(cfg_dict)
+
+        _run_training(
+            config,
+            logs_dir=logs_dir,
+            device_str=device_str,
+            quiet=quiet,
+            no_report=no_report,
+        )
+
+except ImportError:  # pragma: no cover
+
+    def hydra_main() -> None:  # type: ignore[misc]
+        """Stub: hydra-core is not installed."""
+        print(
+            "hydra-core is required for pathogems-train-hydra.\n"
+            "Install it with:  pip install hydra-core>=1.3",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":

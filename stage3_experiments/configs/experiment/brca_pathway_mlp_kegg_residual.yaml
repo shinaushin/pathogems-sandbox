@@ -1,0 +1,8 @@
+# @package _global_
+name: brca_pathway_mlp_kegg_residual
+top_k_genes: 3000
+model: pathway_mlp
+pathway_db: c2_kegg
+pathway_residual: true
+epochs: 200
+notes: "Ablation 3/4: pathway_residual=True adds a dense skip connection W_skip (n_genes x n_pathways, no bias) that is added to the MaskedLinear output before normalisation and activation. This lets the model route signal through the pathway layer (structured, interpretable) or bypass it (dense, unconstrained) as needed — worst case it recovers flat-MLP-like behaviour; best case it augments pathway activations with direct gene contributions. The skip weights are Kaiming-initialised. All other settings identical to brca_pathway_mlp_kegg (CI=0.564)."

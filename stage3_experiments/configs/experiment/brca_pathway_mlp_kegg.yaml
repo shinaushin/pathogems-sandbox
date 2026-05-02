@@ -1,0 +1,7 @@
+# @package _global_
+name: brca_pathway_mlp_kegg
+top_k_genes: 3000
+model: pathway_mlp
+pathway_db: c2_kegg
+epochs: 200
+notes: "PathwayMLP with MSigDB C2 KEGG gene sets (~186 canonical pathways, ~7000 unique genes) instead of Hallmark (~50 pathways, ~4383 genes). At top_k_genes=3000 the Hallmark run assigned only 711/3000 genes (24%). KEGG's broader coverage should assign ~50-60% of the top-3000 genes, giving the MaskedLinear first layer enough structured signal to be competitive with the flat MLP baseline (C-index ~0.601). More pathways also means finer-grained first-layer bottleneck."

@@ -1,0 +1,8 @@
+# @package _global_
+name: brca_pathway_mlp_kegg_scaled_init
+top_k_genes: 3000
+model: pathway_mlp
+pathway_db: c2_kegg
+pathway_scaled_init: true
+epochs: 200
+notes: "Ablation 2/4: pathway_scaled_init=True rescales MaskedLinear weights after Kaiming init by 1/sqrt(n_member_genes) per pathway node. Without this, large pathways (e.g. KEGG_RIBOSOME with ~90 genes) have pre-activation variance ~6x higher than small pathways (~15 genes), causing BatchNorm to be driven by large pathways and leaving small pathway nodes starved of gradient signal. Scaled init equalises expected pre-activation magnitude at step 0. All other settings identical to brca_pathway_mlp_kegg (CI=0.564)."

@@ -61,6 +61,13 @@ dependencies:
       # kagglehub handles the new token format; kaggle is needed for
       # kernel push / poll / fetch via the CLI.  nbformat converts the
       # training script into a Jupyter notebook for the Kaggle kernel API.
+      # ---- Config management ----
+      - hydra-core>=1.3,<2.0  # CLI config composition and sweep orchestration
+
+      # ---- Kaggle GPU bridge (optional — only needed to run on Kaggle) ----
+      # kagglehub handles the new token format; kaggle is needed for
+      # kernel push / poll / fetch via the CLI.  nbformat converts the
+      # training script into a Jupyter notebook for the Kaggle kernel API.
       - kaggle>=1.6            # bridge uses kaggle CLI; v1 and v2 both work
       - kagglehub>=0.3,<1.0
       - nbformat>=5.9,<6.0

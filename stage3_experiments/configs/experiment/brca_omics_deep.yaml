@@ -1,0 +1,6 @@
+# @package _global_
+name: brca_omics_deep
+top_k_genes: 2000
+hidden_dims: [256, 128, 32]
+epochs: 200
+notes: "Baseline improvement 4/5: hidden_dims=[256, 128, 32] adds a wider first hidden layer and one additional depth level compared to the baseline [128, 32]. The extra capacity allows the model to learn more complex gene-gene interaction patterns before compressing to the risk scalar. Batch normalisation and dropout (both kept at default) should prevent the additional parameters from overfitting on the ~900-patient cohort. All other settings identical to brca_omics_topk1000 (CI=0.6017)."

@@ -1,0 +1,7 @@
+# @package _global_
+name: brca_omics_cox_lasso
+top_k_genes: 2000
+model: linear_cox
+l1_weight: 1.0e-04
+epochs: 200
+notes: "Baseline improvement 5/5: Cox-LASSO — a penalised linear Cox model. model='linear_cox' uses a single linear layer (1000 genes → 1 risk scalar, no activation, no hidden layers). l1_weight=1e-4 applies L1 regularisation to the linear weights, driving most coefficients to exactly zero and retaining a sparse set of prognostic genes. This is the classical genomics survival baseline (equivalent to glmnet Cox-LASSO) and provides an interpretable linear upper-bound for comparison with the nonlinear MLP variants. l1_weight raised to 1e-4 vs 1e-5 because the linear model has only 1000 weights (vs 128k for MLP) so a larger coefficient is needed for equivalent sparsity pressure. hidden_dims/dropout/batchnorm are ignored by linear_cox (the builder logs warnings)."
