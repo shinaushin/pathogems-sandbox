@@ -45,6 +45,7 @@ def _minimal_config(**overrides: object) -> ExperimentConfig:
 # Early stopping fires
 # --------------------------------------------------------------------------- #
 
+
 @pytest.mark.slow
 def test_early_stopping_fires_before_epoch_budget(synthetic_cohort: SurvivalCohort) -> None:
     """Early stopping must halt training before the epoch budget is consumed.
@@ -73,6 +74,7 @@ def test_early_stopping_fires_before_epoch_budget(synthetic_cohort: SurvivalCoho
 # Gradient clipping prevents parameter explosion
 # --------------------------------------------------------------------------- #
 
+
 @pytest.mark.slow
 def test_gradient_clipping_prevents_nan_parameters(synthetic_cohort: SurvivalCohort) -> None:
     """Training with a pathologically large LR stays finite when clipping is on.
@@ -85,15 +87,14 @@ def test_gradient_clipping_prevents_nan_parameters(synthetic_cohort: SurvivalCoh
         name="clip_test",
         epochs=10,
         early_stopping_patience=0,
-        lr=10.0,          # intentionally extreme — should cause NaN without clipping
+        lr=10.0,  # intentionally extreme — should cause NaN without clipping
         max_grad_norm=1.0,
     )
     result = cross_validate(synthetic_cohort, cfg, verbose=False)
     # Clipping should have kept parameters finite throughout, so every
     # test-fold C-index must be a real number (not NaN / inf).
     assert all(np.isfinite(f.c_index) for f in result.folds), (
-        f"C-index NaN/inf with gradient clipping enabled: "
-        f"{[f.c_index for f in result.folds]}"
+        f"C-index NaN/inf with gradient clipping enabled: " f"{[f.c_index for f in result.folds]}"
     )
 
 
@@ -116,6 +117,7 @@ def test_no_clipping_is_optional(synthetic_cohort: SurvivalCohort) -> None:
 # NaN loss is skipped (no backward, no crash)
 # --------------------------------------------------------------------------- #
 
+
 def test_nan_loss_is_skipped_without_crash(synthetic_cohort: SurvivalCohort) -> None:
     """The training loop silently skips backward when loss is NaN.
 
@@ -128,9 +130,7 @@ def test_nan_loss_is_skipped_without_crash(synthetic_cohort: SurvivalCohort) -> 
 
     call_count = [0]
 
-    def _patched(
-        risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor
-    ) -> torch.Tensor:
+    def _patched(risk: torch.Tensor, time: torch.Tensor, event: torch.Tensor) -> torch.Tensor:
         call_count[0] += 1
         if call_count[0] == 1:
             # Mimic an NaN loss on the very first forward pass.

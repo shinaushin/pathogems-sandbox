@@ -87,11 +87,12 @@ def _load_config(config_path: Path) -> dict:
         cfg = OmegaConf.load(config_path)
         d = OmegaConf.to_container(cfg, resolve=True)
         if isinstance(d, dict):
-            d.pop("runtime", None)   # strip Hydra runtime block
+            d.pop("runtime", None)  # strip Hydra runtime block
             return d
         raise TypeError(f"Expected dict from OmegaConf.load({config_path}), got {type(d)}")
     else:
         return json.loads(config_path.read_text())
+
 
 # ---------------------------------------------------------------------------
 # Dependency checks — fail fast before doing any work

@@ -259,9 +259,7 @@ class ExperimentConfig:
         if self.n_folds < 2:
             raise ValueError(f"n_folds must be >= 2; got {self.n_folds}")
         if not (0.0 < self.val_fraction < 1.0):
-            raise ValueError(
-                f"val_fraction must be in (0.0, 1.0); got {self.val_fraction}"
-            )
+            raise ValueError(f"val_fraction must be in (0.0, 1.0); got {self.val_fraction}")
         if self.epochs < 1:
             raise ValueError(f"epochs must be >= 1; got {self.epochs}")
         if self.top_k_genes < 1:
